@@ -1,7 +1,6 @@
 import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { nutellaProduct } from '../test/fixtures'
 import { mockApi, renderApp } from '../test/utils'
 import { BarcodeScanner } from './BarcodeScanner'
 
@@ -317,8 +316,8 @@ describe('BarcodeScanner cleanup and errors', () => {
 })
 
 describe('scanning from the home page', () => {
-  it('only requests the camera after "Scan barcode" and looks up the detected product', async () => {
-    const fetchMock = mockApi(() => ({ body: nutellaProduct }))
+  it('only requests the camera after "Scan barcode" and shows the detected barcode', async () => {
+    const fetchMock = mockApi(() => undefined)
     const camera = fakeCamera()
     getUserMedia.mockResolvedValue(camera.stream)
     const decoder = zxingStarts()
@@ -329,11 +328,22 @@ describe('scanning from the home page', () => {
     expect(await screen.findByRole('dialog', { name: 'Scan a barcode' })).toBeInTheDocument()
     await screen.findByText(/20–30 cm away/)
 
-    decoder.emit('0098008952506')
+    decoder.emit('0012345678905')
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Nutella' })).toBeInTheDocument()
+    // The barcode is shown as read, leading zeros included, without any network request.
+    expect(await screen.findByText('Barcode detected')).toBeInTheDocument()
+    expect(screen.getByText('0012345678905')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(camera.track.stop).toHaveBeenCalled()
-    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/products/barcode/0098008952506')
+    expect(fetchMock).not.toHaveBeenCalled()
+
+    // Scanning again reopens the camera and clears the previous result.
+    const secondCamera = fakeCamera()
+    getUserMedia.mockResolvedValue(secondCamera.stream)
+    await user.click(screen.getByRole('button', { name: 'Scan again' }))
+    expect(await screen.findByRole('dialog', { name: 'Scan a barcode' })).toBeInTheDocument()
+    expect(screen.queryByText('Barcode detected')).not.toBeInTheDocument()
+    await screen.findByText(/20–30 cm away/)
+    expect(getUserMedia).toHaveBeenCalledTimes(2)
   })
 })
