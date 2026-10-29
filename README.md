@@ -13,7 +13,7 @@ HalalCheck does **not** yet decide whether a product or ingredient is halal. It 
 ## Architecture
 
 ```
-Browser (React SPA, Netlify)  ──HTTPS──▶  FastAPI (Render, Docker)
+Browser (React SPA, Vercel)   ──HTTPS──▶  FastAPI (Render, Docker)
   search · barcode scanner                  /api/products/*        → product data source (not connected)
   ingredients photo + editor                /api/ingredients/extract → OpenCV + Tesseract OCR
 ```
@@ -105,27 +105,29 @@ Then open the `https://<your-computer-ip>:5173` address that Vite prints and acc
 
 On phones and tablets, "Take photo" opens the device's own camera app, which gives better focus and resolution. On computers it opens an in-page camera instead.
 
-## Deployment: Netlify + Render (free tiers)
+## Deployment: Vercel + Render (free tiers)
+
+Deploy the backend first, because the frontend needs its URL.
 
 ### Backend on Render
 
-1. Push this repository to GitHub.
-2. In Render, choose **New → Blueprint** and select the repository. Render reads [`render.yaml`](render.yaml) and builds [`backend/Dockerfile`](backend/Dockerfile). The Dockerfile installs Tesseract, which is why Render's plain Python runtime can't be used.
-3. When prompted, set `HALALCHECK_CORS_ORIGINS` to your Netlify URL, for example `https://halalcheck.netlify.app`. You can add more URLs, separated by commas.
-4. Once it's deployed, check `https://<your-service>.onrender.com/api/health`. It should report `"ocr_available": true`.
+1. In Render, choose **New → Blueprint** and select the repository. Render reads [`render.yaml`](render.yaml) and builds [`backend/Dockerfile`](backend/Dockerfile). The Dockerfile installs Tesseract, which is why Render's plain Python runtime can't be used.
+2. When prompted, set `HALALCHECK_CORS_ORIGINS` to your Vercel URL, for example `https://halalcheck.vercel.app`. You can add more URLs, separated by commas.
+3. Once it's deployed, check `https://<your-service>.onrender.com/api/health`. It should report `"ocr_available": true`.
 
-### Frontend on Netlify
+### Frontend on Vercel
 
-1. In Netlify, choose **Add new site → Import an existing project** and select the repository. [`netlify.toml`](netlify.toml) sets the base directory, build command, single-page-app redirects and headers.
-2. Under **Site configuration → Environment variables**, set `VITE_API_BASE_URL` to the Render URL, for example `https://halalcheck-api.onrender.com`. Then trigger a redeploy.
+1. In Vercel, choose **Add New → Project** and import the repository. Leave **Root Directory** as the repository root. [`vercel.json`](vercel.json) sets the install and build commands, the output folder, single-page-app rewrites and headers.
+2. Before deploying, add the environment variable `VITE_API_BASE_URL` with your Render URL as its value, for example `https://halalcheck-api.onrender.com`. If you add it after deploying, redeploy so the build picks it up.
+3. Set `HALALCHECK_CORS_ORIGINS` on Render to your production Vercel URL.
 
-Netlify serves the site over HTTPS, which the camera features need.
+Vercel serves the site over HTTPS, which the camera features need. Preview deployments get their own URLs. They can only call the API if you add those URLs to `HALALCHECK_CORS_ORIGINS`.
 
 ### Free-tier caveats
 
 - **Cold starts.** Render's free web services sleep after about 15 minutes without traffic, and the first request then takes up to a minute. The app warns users when processing is slow, and allows up to two minutes before giving up.
 - **Limited resources.** The free instance has 512 MB of RAM and a fraction of a CPU, so OCR is noticeably slower than on a laptop. `render.yaml` sets `HALALCHECK_OCR_MAX_CONCURRENCY=1` so only one image is processed at a time.
-- **Why the frontend calls Render directly.** Netlify's proxy redirects time out after about 26 seconds, which a cold start plus OCR can exceed. That's also why CORS must be configured on the backend.
+- **Why the frontend calls Render directly.** Proxying `/api` through the frontend host would add another timeout limit, which a cold start plus OCR can exceed. That's also why CORS must be configured on the backend.
 
 ## API
 
