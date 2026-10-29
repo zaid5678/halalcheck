@@ -35,6 +35,13 @@ class Settings(BaseSettings):
 
     search_page_size: int = Field(default=24, ge=1, le=100)
 
+    # LLM via OpenRouter. Without a key, barcode checks use the ingredient rules only.
+    openrouter_api_key: str = ""
+    openrouter_url: str = "https://openrouter.ai/api/v1/chat/completions"
+    llm_model: str = "openai/gpt-6.1-terra"
+    llm_timeout: float = 30.0
+    max_image_bytes: int = 5 * 1024 * 1024
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def split_origins(cls, value: object) -> object:
