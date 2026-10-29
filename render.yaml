@@ -13,7 +13,7 @@ services:
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
-      # Your Netlify site URL(s), comma-separated, e.g. https://halalcheck.netlify.app
+      # Your Vercel site URL(s), comma-separated, e.g. https://halalcheck.vercel.app
       - key: HALALCHECK_CORS_ORIGINS
         sync: false
       # The free instance has 512 MB RAM and a fraction of a CPU: process one image at a time.
