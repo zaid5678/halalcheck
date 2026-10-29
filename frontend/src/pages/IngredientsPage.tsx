@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
-import { AnalysisResult } from '../components/AnalysisResult'
-import { ArrowLeftIcon, InfoIcon } from '../components/icons'
+import { ArrowLeftIcon } from '../components/icons'
 import { IngredientsTextEditor } from '../components/IngredientsTextEditor'
 import { PhotoPicker, type PhotoSource } from '../components/PhotoPicker'
 import { ErrorState } from '../components/StatusMessages'
+import { VerdictCard } from '../components/VerdictCard'
 import {
   formatFileSize,
   MAX_UPLOAD_BYTES,
@@ -12,8 +12,8 @@ import {
   validateImageFile,
 } from '../lib/image'
 import { ApiError } from '../services/api'
-import { analyzeIngredients } from '../services/ingredients'
-import type { IngredientsAnalysis } from '../types/analysis'
+import { checkPhoto } from '../services/halal'
+import type { HalalVerdict } from '../types/halal'
 
 interface Photo {
   file: File
@@ -25,10 +25,10 @@ type Stage =
   | { step: 'choose' }
   | { step: 'preview'; photo: Photo }
   | { step: 'analysing'; photo: Photo; correctedText: string | null }
-  | { step: 'result'; photo: Photo; result: IngredientsAnalysis }
+  | { step: 'result'; photo: Photo; result: HalalVerdict }
   | { step: 'error'; photo: Photo; error: ApiError; correctedText: string | null }
 
-const SLOW_ANALYSIS_MS = 45_000
+const SLOW_ANALYSIS_MS = 15_000
 
 const ERROR_TITLES: Record<string, string> = {
   unsupported_image_type: 'Unsupported image',
@@ -36,10 +36,11 @@ const ERROR_TITLES: Record<string, string> = {
   invalid_image: 'Couldn’t open this image',
   too_many_requests: 'Scan limit reached',
   ai_not_configured: 'Analysis isn’t available',
+  unreadable_image: 'No ingredients list found',
 }
 
 // Retrying these won't help; the user needs a different photo or to wait.
-const NO_RETRY = new Set(['unsupported_image_type', 'image_too_large', 'invalid_image', 'too_many_requests'])
+const NO_RETRY = new Set(['unsupported_image_type', 'image_too_large', 'invalid_image', 'too_many_requests', 'unreadable_image'])
 
 export function IngredientsPage() {
   const [stage, setStage] = useState<Stage>({ step: 'choose' })
@@ -76,16 +77,20 @@ export function IngredientsPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
 
     try {
-      const upload = await prepareImageForUpload(current.file)
-      if (upload.size > MAX_UPLOAD_BYTES) {
-        throw new ApiError('image_too_large', 'That image is too large. Please use one under 10 MB.', 413)
+      let result: HalalVerdict
+      if (correctedText) {
+        result = await checkPhoto({ ingredientsText: correctedText, signal: controller.signal })
+      } else {
+        const upload = await prepareImageForUpload(current.file)
+        if (upload.size > MAX_UPLOAD_BYTES) {
+          throw new ApiError('image_too_large', 'That image is too large. Please use one under 10 MB.', 413)
+        }
+        result = await checkPhoto({
+          image: upload,
+          fileName: current.file.name || 'label.jpg',
+          signal: controller.signal,
+        })
       }
-      const result = await analyzeIngredients({
-        image: upload,
-        fileName: current.file.name || 'label.jpg',
-        correctedText,
-        signal: controller.signal,
-      })
       if (!controller.signal.aborted) setStage({ step: 'result', photo: current, result })
     } catch (error) {
       if (controller.signal.aborted) return
@@ -124,8 +129,8 @@ export function IngredientsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Scan ingredients</h1>
         <p className="mt-1 text-muted">
-          Photograph the ingredients list on the packaging. An AI model reads it, in any language,
-          and looks into where each ingredient may come from.
+          Photograph the ingredients list on the packaging. We’ll read it and check whether the
+          ingredients are halal.
         </p>
       </div>
 
@@ -156,7 +161,7 @@ export function IngredientsPage() {
             onClick={() => analyse(stage.photo)}
             className="btn-primary h-14 w-full text-base"
           >
-            Analyse ingredients
+            Check ingredients
           </button>
           <PhotoPicker onSelect={selectPhoto} variant="compact" />
         </div>
@@ -168,7 +173,7 @@ export function IngredientsPage() {
 
       {stage.step === 'error' && (
         <ErrorState
-          title={ERROR_TITLES[stage.error.code] ?? 'Couldn’t analyse this photo'}
+          title={ERROR_TITLES[stage.error.code] ?? 'Couldn’t check this photo'}
           message={stage.error.message}
           onRetry={
             NO_RETRY.has(stage.error.code)
@@ -184,27 +189,14 @@ export function IngredientsPage() {
 
       {stage.step === 'result' && (
         <>
-          {!stage.result.label_readable && (
-            <div role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-900">
-              <h2 className="font-semibold">Please take a clearer photo</h2>
-              <p className="mt-1 text-sm">
-                {stage.result.readability_notes ??
-                  'The ingredients list couldn’t be read reliably, so this assessment is incomplete.'}
-              </p>
-              <div className="mt-3">
-                <PhotoPicker onSelect={selectPhoto} variant="compact" />
-              </div>
-            </div>
-          )}
-          <AnalysisResult analysis={stage.result} />
+          <VerdictCard result={stage.result} />
           <IngredientsTextEditor
-            key={stage.result.extracted_ingredients_text}
-            initialText={stage.result.extracted_ingredients_text}
+            key={stage.result.ingredients_text ?? ''}
+            initialText={stage.result.ingredients_text ?? ''}
             onRerun={(text) => analyse(stage.photo, text)}
           />
-          <Disclaimer model={stage.result.model} usedCorrectedText={stage.result.used_corrected_text} />
           <button type="button" onClick={startOver} className="btn-secondary w-full">
-            Scan another label
+            Check another product
           </button>
         </>
       )}
@@ -244,36 +236,18 @@ function Analysing({ rerun, onCancel }: { rerun: boolean; onCancel: () => void }
           aria-hidden="true"
         />
         <span className="font-medium">
-          {rerun ? 'Re-running the assessment…' : 'Analysing ingredients…'}
+          {rerun ? 'Re-checking ingredients…' : 'Reading the label…'}
         </span>
       </div>
       <p className="mt-2 text-sm text-muted" aria-live="polite">
         {slow
           ? 'Still working. If the service has been idle it can take up to a minute longer to start.'
-          : 'Each ingredient is being investigated. This usually takes 15–40 seconds.'}
+          : 'This usually takes a few seconds.'}
       </p>
       <button type="button" onClick={onCancel} className="btn-secondary mt-4">
         Cancel
       </button>
     </div>
-  )
-}
-
-function Disclaimer({ model, usedCorrectedText }: { model: string; usedCorrectedText: boolean }) {
-  return (
-    <aside className="flex gap-3 rounded-2xl bg-brand-50 p-4 text-sm text-brand-800">
-      <InfoIcon className="mt-0.5 size-5 shrink-0" />
-      <div className="space-y-1">
-        <p>
-          <strong>Informational guidance, not a religious ruling or certification.</strong> This
-          assessment was produced by an AI model ({model})
-          {usedCorrectedText ? ' using your corrected ingredients text' : ''}. Its reasoning is
-          based on the label and the model’s general knowledge. Nothing has been checked with the
-          manufacturer, a certifier or any database.
-        </p>
-        <p>If in doubt, ask the manufacturer or a scholar you trust.</p>
-      </div>
-    </aside>
   )
 }
 
