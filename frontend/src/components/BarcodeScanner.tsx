@@ -1,12 +1,17 @@
-import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
-import { BarcodeFormat, DecodeHintType } from '@zxing/library'
 import { useEffect, useId, useRef, useState } from 'react'
 import { isPlausibleBarcode } from '../lib/barcode'
+import { startBarcodeDecoder, type BarcodeDecoder } from '../lib/barcodeDetection'
 import {
   CAMERA_ERRORS,
   cameraPreflightError,
   classifyCameraError,
+  enableContinuousFocus,
+  openRearCamera,
+  setZoom,
+  stopStream,
+  zoomRange,
   type CameraErrorKind,
+  type ZoomRange,
 } from '../lib/camera'
 import { CloseIcon, KeypadIcon } from './icons'
 
@@ -15,12 +20,12 @@ type ScanStatus =
   | { status: 'scanning' }
   | { status: 'error'; kind: CameraErrorKind }
 
-const RETAIL_FORMATS = [
-  BarcodeFormat.EAN_13,
-  BarcodeFormat.EAN_8,
-  BarcodeFormat.UPC_A,
-  BarcodeFormat.UPC_E,
-]
+/**
+ * Phones can't focus on a barcode held very close, so where the camera can zoom we start
+ * zoomed in: people naturally hold the phone further back, where the barcode is sharp.
+ */
+const DEFAULT_ZOOM = 2
+const ZOOM_LEVELS = [1, 2, 3]
 
 interface BarcodeScannerProps {
   onDetected: (barcode: string) => void
@@ -35,11 +40,13 @@ interface BarcodeScannerProps {
 export function BarcodeScanner({ onDetected, onClose, onManualEntry }: BarcodeScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const trackRef = useRef<MediaStreamTrack | null>(null)
   const [attempt, setAttempt] = useState(0)
   const [state, setState] = useState<ScanStatus>(() => {
     const kind = cameraPreflightError()
     return kind ? { status: 'error', kind } : { status: 'starting' }
   })
+  const [zoom, setZoomState] = useState<{ range: ZoomRange; level: number } | null>(null)
   const titleId = useId()
   const statusId = useId()
 
@@ -51,46 +58,68 @@ export function BarcodeScanner({ onDetected, onClose, onManualEntry }: BarcodeSc
 
   useEffect(() => {
     // Preflight failures are already reflected in the initial state.
-    if (cameraPreflightError() || !videoRef.current) return
+    const video = videoRef.current
+    if (cameraPreflightError() || !video) return
 
     let cancelled = false
     let detected = false
-    let controls: IScannerControls | null = null
+    let stream: MediaStream | null = null
+    let decoder: BarcodeDecoder | null = null
 
-    const hints = new Map<DecodeHintType, unknown>([[DecodeHintType.POSSIBLE_FORMATS, RETAIL_FORMATS]])
-    const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 150 })
+    const release = () => {
+      decoder?.stop()
+      stopStream(stream)
+      trackRef.current = null
+    }
 
-    reader
-      .decodeFromConstraints(
-        { audio: false, video: { facingMode: { ideal: 'environment' } } },
-        videoRef.current,
-        (result, _error, scanControls) => {
-          // Per-frame "nothing found" errors are expected while the user lines up the barcode.
-          if (!result || detected || cancelled) return
-          const text = result.getText()
-          if (!isPlausibleBarcode(text)) return
-          detected = true
-          scanControls.stop()
-          onDetectedRef.current(text)
-        },
-      )
-      .then((scanControls) => {
-        if (cancelled || detected) {
-          scanControls.stop()
-          return
+    const handleText = (text: string) => {
+      if (detected || cancelled || !isPlausibleBarcode(text)) return
+      detected = true
+      release()
+      onDetectedRef.current(text)
+    }
+
+    const start = async () => {
+      stream = await openRearCamera()
+      if (cancelled) return release()
+
+      const [track] = stream.getVideoTracks()
+      if (track) {
+        trackRef.current = track
+        await enableContinuousFocus(track)
+        const range = zoomRange(track)
+        if (range) {
+          const level = Math.min(Math.max(DEFAULT_ZOOM, range.min), range.max)
+          const applied = await setZoom(track, level)
+          if (!cancelled) setZoomState({ range, level: applied ? level : range.min })
         }
-        controls = scanControls
-        setState({ status: 'scanning' })
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) setState({ status: 'error', kind: classifyCameraError(error) })
-      })
+      }
+
+      video.srcObject = stream
+      await video.play().catch(() => {})
+      if (cancelled) return release()
+
+      decoder = await startBarcodeDecoder(video, handleText)
+      if (cancelled || detected) return release()
+      setState({ status: 'scanning' })
+    }
+
+    start().catch((error: unknown) => {
+      release()
+      if (!cancelled) setState({ status: 'error', kind: classifyCameraError(error) })
+    })
 
     return () => {
       cancelled = true
-      controls?.stop()
+      release()
     }
   }, [attempt])
+
+  async function changeZoom(level: number) {
+    const track = trackRef.current
+    if (!track || !zoom) return
+    if (await setZoom(track, level)) setZoomState({ range: zoom.range, level })
+  }
 
   // Dialog behaviour: focus the close button, close on Escape, and stop the page scrolling.
   useEffect(() => {
@@ -170,6 +199,7 @@ export function BarcodeScanner({ onDetected, onClose, onManualEntry }: BarcodeSc
                     type="button"
                     onClick={() => {
                       setState({ status: 'starting' })
+                      setZoomState(null)
                       setAttempt((n) => n + 1)
                     }}
                     className="h-12 rounded-xl bg-white font-semibold text-ink hover:bg-brand-50"
@@ -192,10 +222,29 @@ export function BarcodeScanner({ onDetected, onClose, onManualEntry }: BarcodeSc
       </div>
 
       <div className="px-6 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center">
+        {!error && zoom && (
+          <div role="group" aria-label="Camera zoom" className="mb-3 inline-flex gap-1 rounded-full bg-white/15 p-1">
+            {ZOOM_LEVELS.filter((level) => level >= zoom.range.min && level <= zoom.range.max).map(
+              (level) => (
+                <button
+                  key={level}
+                  type="button"
+                  onClick={() => changeZoom(level)}
+                  aria-pressed={zoom.level === level}
+                  className={`h-10 min-w-12 rounded-full px-3 text-sm font-semibold ${
+                    zoom.level === level ? 'bg-white text-ink' : 'text-white hover:bg-white/15'
+                  }`}
+                >
+                  {level}×
+                </button>
+              ),
+            )}
+          </div>
+        )}
         <p id={statusId} aria-live="polite" className="text-sm text-white/80">
           {state.status === 'starting' && 'Starting camera… Your browser may ask for permission.'}
           {state.status === 'scanning' &&
-            'Hold the barcode inside the frame. It will be detected automatically.'}
+            'Hold the phone about 20–30 cm away with the barcode inside the frame. If it looks blurry, move further back.'}
           {state.status === 'error' && 'The camera is off.'}
         </p>
         {!error && (

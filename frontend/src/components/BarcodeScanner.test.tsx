@@ -1,58 +1,59 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { nutellaProduct } from '../test/fixtures'
 import { mockApi, renderApp } from '../test/utils'
 import { BarcodeScanner } from './BarcodeScanner'
 
-type Callback = (
-  result: { getText: () => string } | undefined,
-  error: unknown,
-  controls: { stop: () => void },
-) => void
+type ZxingCallback = (result: { getText: () => string } | undefined) => void
 
-// The real reader needs a camera; replace it with one the tests drive by hand.
+// The real decoders need camera frames; replace zxing with one the tests drive by hand.
 const zxing = vi.hoisted(() => ({
-  decodeFromConstraints: vi.fn(),
-  constructed: 0,
+  decodeFromVideoElement: vi.fn(),
+  hints: [] as Map<unknown, unknown>[],
 }))
 
 vi.mock('@zxing/browser', () => ({
   BrowserMultiFormatReader: class {
-    constructor() {
-      zxing.constructed += 1
+    constructor(hints: Map<unknown, unknown>) {
+      zxing.hints.push(hints)
     }
-    decodeFromConstraints = zxing.decodeFromConstraints
+    decodeFromVideoElement = zxing.decodeFromVideoElement
   },
 }))
 
-function deferred<T>() {
-  let resolve!: (value: T) => void
-  let reject!: (reason: unknown) => void
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res
-    reject = rej
-  })
-  return { promise, resolve, reject }
+interface FakeTrackOptions {
+  capabilities?: Record<string, unknown>
 }
 
-/** Simulates a camera that starts successfully. Returns hooks to emit frames. */
-function cameraStarts() {
+function fakeCamera({ capabilities = {} }: FakeTrackOptions = {}) {
+  const track = {
+    stop: vi.fn(),
+    getCapabilities: vi.fn(() => capabilities),
+    applyConstraints: vi.fn().mockResolvedValue(undefined),
+  }
+  const stream = { getTracks: () => [track], getVideoTracks: () => [track] }
+  return { track, stream: stream as unknown as MediaStream }
+}
+
+let getUserMedia: ReturnType<typeof vi.fn>
+
+/** A zxing decoder that starts successfully; ``emit`` simulates a decoded frame. */
+function zxingStarts() {
   const controls = { stop: vi.fn() }
-  let callback: Callback = () => {}
-  zxing.decodeFromConstraints.mockImplementation((_c: unknown, _v: unknown, cb: Callback) => {
+  let callback: ZxingCallback = () => {}
+  zxing.decodeFromVideoElement.mockImplementation((_video: unknown, cb: ZxingCallback) => {
     callback = cb
     return Promise.resolve(controls)
   })
   return {
     controls,
-    emit: (text: string) => act(() => callback({ getText: () => text }, undefined, controls)),
-    emitNothing: () => act(() => callback(undefined, new Error('NotFoundException'), controls)),
+    emit: (text: string) => act(() => callback({ getText: () => text })),
+    emitNothing: () => act(() => callback(undefined)),
   }
 }
 
 function cameraFails(name: string) {
-  zxing.decodeFromConstraints.mockRejectedValue(new DOMException('camera error', name))
+  getUserMedia.mockRejectedValue(new DOMException('camera error', name))
 }
 
 function renderScanner() {
@@ -61,66 +62,189 @@ function renderScanner() {
 }
 
 beforeEach(() => {
-  zxing.constructed = 0
-  zxing.decodeFromConstraints.mockReset()
-  Object.defineProperty(navigator, 'mediaDevices', {
-    configurable: true,
-    value: { getUserMedia: vi.fn() },
-  })
+  zxing.hints = []
+  zxing.decodeFromVideoElement.mockReset()
+  getUserMedia = vi.fn().mockResolvedValue(fakeCamera().stream)
+  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } })
   Object.defineProperty(window, 'isSecureContext', { configurable: true, value: true })
 })
 
 afterEach(() => {
   Reflect.deleteProperty(navigator, 'mediaDevices')
+  Reflect.deleteProperty(globalThis, 'BarcodeDetector')
 })
 
-describe('BarcodeScanner', () => {
-  it('requests the rear camera and reports a detected barcode', async () => {
-    const camera = cameraStarts()
-    const { props } = renderScanner()
+describe('BarcodeScanner camera setup', () => {
+  it('requests a high-resolution rear camera so distant barcodes stay readable', async () => {
+    zxingStarts()
+    renderScanner()
 
-    expect(await screen.findByText(/hold the barcode inside the frame/i)).toBeInTheDocument()
-    expect(zxing.decodeFromConstraints.mock.calls[0][0]).toEqual({
+    await screen.findByText(/20–30 cm away/)
+    expect(getUserMedia).toHaveBeenCalledWith({
+      audio: false,
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+      },
+    })
+  })
+
+  it('falls back to default resolution if the camera rejects 1080p', async () => {
+    const camera = fakeCamera()
+    getUserMedia
+      .mockReset()
+      .mockRejectedValueOnce(new DOMException('too big', 'OverconstrainedError'))
+      .mockResolvedValueOnce(camera.stream)
+    zxingStarts()
+    renderScanner()
+
+    await screen.findByText(/20–30 cm away/)
+    expect(getUserMedia).toHaveBeenLastCalledWith({
       audio: false,
       video: { facingMode: { ideal: 'environment' } },
     })
+  })
 
-    camera.emitNothing()
+  it('turns on continuous autofocus and starts zoomed in when supported', async () => {
+    const camera = fakeCamera({
+      capabilities: { focusMode: ['manual', 'continuous'], zoom: { min: 1, max: 8 } },
+    })
+    getUserMedia.mockResolvedValue(camera.stream)
+    zxingStarts()
+    const { user } = renderScanner()
+
+    const zoomGroup = await screen.findByRole('group', { name: 'Camera zoom' })
+    expect(camera.track.applyConstraints).toHaveBeenCalledWith({
+      advanced: [{ focusMode: 'continuous' }],
+    })
+    expect(camera.track.applyConstraints).toHaveBeenCalledWith({ advanced: [{ zoom: 2 }] })
+    expect(within(zoomGroup).getByRole('button', { name: '2×' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+
+    await user.click(within(zoomGroup).getByRole('button', { name: '1×' }))
+    expect(camera.track.applyConstraints).toHaveBeenLastCalledWith({ advanced: [{ zoom: 1 }] })
+    expect(within(zoomGroup).getByRole('button', { name: '1×' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+  })
+
+  it('only offers zoom levels the camera supports', async () => {
+    const camera = fakeCamera({ capabilities: { zoom: { min: 1, max: 2.5 } } })
+    getUserMedia.mockResolvedValue(camera.stream)
+    zxingStarts()
+    renderScanner()
+
+    const zoomGroup = await screen.findByRole('group', { name: 'Camera zoom' })
+    expect(within(zoomGroup).getAllByRole('button').map((b) => b.textContent)).toEqual(['1×', '2×'])
+  })
+
+  it('hides zoom controls when the camera cannot zoom', async () => {
+    zxingStarts()
+    renderScanner()
+
+    await screen.findByText(/20–30 cm away/)
+    expect(screen.queryByRole('group', { name: 'Camera zoom' })).not.toBeInTheDocument()
+  })
+})
+
+describe('BarcodeScanner decoding', () => {
+  it('uses zxing in "try harder" mode and reports a detected barcode', async () => {
+    const camera = fakeCamera()
+    getUserMedia.mockResolvedValue(camera.stream)
+    const decoder = zxingStarts()
+    const { props } = renderScanner()
+    await screen.findByText(/20–30 cm away/)
+
+    expect([...zxing.hints[0].values()]).toContain(true)
+    decoder.emitNothing()
     expect(props.onDetected).not.toHaveBeenCalled()
 
-    camera.emit('0012345678905')
-    expect(camera.controls.stop).toHaveBeenCalled()
+    decoder.emit('0012345678905')
     expect(props.onDetected).toHaveBeenCalledExactlyOnceWith('0012345678905')
+    expect(decoder.controls.stop).toHaveBeenCalled()
+    expect(camera.track.stop).toHaveBeenCalled()
 
     // Further frames after detection are ignored.
-    camera.emit('5000112637922')
+    decoder.emit('5000112637922')
     expect(props.onDetected).toHaveBeenCalledTimes(1)
   })
 
   it('ignores values that are not retail barcodes', async () => {
-    const camera = cameraStarts()
+    const camera = fakeCamera()
+    getUserMedia.mockResolvedValue(camera.stream)
+    const decoder = zxingStarts()
     const { props } = renderScanner()
-    await screen.findByText(/hold the barcode/i)
+    await screen.findByText(/20–30 cm away/)
 
-    camera.emit('HELLO')
+    decoder.emit('HELLO')
     expect(props.onDetected).not.toHaveBeenCalled()
-    expect(camera.controls.stop).not.toHaveBeenCalled()
+    expect(camera.track.stop).not.toHaveBeenCalled()
   })
 
+  it('prefers the browser’s built-in barcode detector when available', async () => {
+    const detect = vi
+      .fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([{ rawValue: '5000112637922' }])
+    class FakeBarcodeDetector {
+      static getSupportedFormats = vi.fn().mockResolvedValue(['qr_code', 'ean_13', 'upc_a'])
+      constructor(options: { formats: string[] }) {
+        expect(options.formats).toEqual(['ean_13', 'upc_a'])
+      }
+      detect = detect
+    }
+    Object.defineProperty(globalThis, 'BarcodeDetector', {
+      configurable: true,
+      value: FakeBarcodeDetector,
+    })
+    // jsdom videos never have frame data; pretend a frame is ready.
+    vi.spyOn(HTMLMediaElement.prototype, 'readyState', 'get').mockReturnValue(4)
+    const camera = fakeCamera()
+    getUserMedia.mockResolvedValue(camera.stream)
+    const { props } = renderScanner()
+
+    await vi.waitFor(() => expect(props.onDetected).toHaveBeenCalledWith('5000112637922'))
+    expect(zxing.decodeFromVideoElement).not.toHaveBeenCalled()
+    expect(camera.track.stop).toHaveBeenCalled()
+  })
+
+  it('falls back to zxing when the built-in detector lacks retail formats', async () => {
+    Object.defineProperty(globalThis, 'BarcodeDetector', {
+      configurable: true,
+      value: class {
+        static getSupportedFormats = vi.fn().mockResolvedValue(['qr_code'])
+      },
+    })
+    zxingStarts()
+    renderScanner()
+
+    await screen.findByText(/20–30 cm away/)
+    expect(zxing.decodeFromVideoElement).toHaveBeenCalled()
+  })
+})
+
+describe('BarcodeScanner cleanup and errors', () => {
   it('releases the camera when cancelled', async () => {
-    const camera = cameraStarts()
+    const camera = fakeCamera()
+    getUserMedia.mockResolvedValue(camera.stream)
+    const decoder = zxingStarts()
     const { props, user, unmount } = renderScanner()
-    await screen.findByText(/hold the barcode/i)
+    await screen.findByText(/20–30 cm away/)
 
     await user.click(screen.getByRole('button', { name: /cancel/i }))
     expect(props.onClose).toHaveBeenCalled()
 
     unmount()
-    expect(camera.controls.stop).toHaveBeenCalled()
+    expect(decoder.controls.stop).toHaveBeenCalled()
+    expect(camera.track.stop).toHaveBeenCalled()
   })
 
   it('closes on Escape', async () => {
-    cameraStarts()
+    zxingStarts()
     const { props, user } = renderScanner()
 
     await user.keyboard('{Escape}')
@@ -128,27 +252,29 @@ describe('BarcodeScanner', () => {
   })
 
   it('stops a camera that finishes starting after the scanner was closed', async () => {
-    const controls = { stop: vi.fn() }
-    const pending = deferred<typeof controls>()
-    zxing.decodeFromConstraints.mockReturnValue(pending.promise)
+    const camera = fakeCamera()
+    let resolveStream!: (stream: MediaStream) => void
+    getUserMedia.mockReturnValue(new Promise((resolve) => (resolveStream = resolve)))
     const { unmount } = renderScanner()
 
     unmount()
-    await act(async () => pending.resolve(controls))
-    expect(controls.stop).toHaveBeenCalled()
+    await act(async () => resolveStream(camera.stream))
+    expect(camera.track.stop).toHaveBeenCalled()
+    expect(zxing.decodeFromVideoElement).not.toHaveBeenCalled()
   })
 
-  it('explains denied permission and offers retry and manual entry', async () => {
+  it('explains denied permission and offers retry', async () => {
     cameraFails('NotAllowedError')
     const { props, user } = renderScanner()
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Camera access was blocked')
 
-    const camera = cameraStarts()
+    getUserMedia.mockResolvedValue(fakeCamera().stream)
+    const decoder = zxingStarts()
     await user.click(screen.getByRole('button', { name: 'Try again' }))
-    expect(await screen.findByText(/hold the barcode/i)).toBeInTheDocument()
-    expect(zxing.decodeFromConstraints).toHaveBeenCalledTimes(2)
-    camera.emit('12345678')
+    expect(await screen.findByText(/20–30 cm away/)).toBeInTheDocument()
+    expect(getUserMedia).toHaveBeenCalledTimes(2)
+    decoder.emit('12345678')
     expect(props.onDetected).toHaveBeenCalledWith('12345678')
   })
 
@@ -171,13 +297,13 @@ describe('BarcodeScanner', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(title)
   })
 
-  it('explains unsupported browsers without starting the reader', () => {
+  it('explains unsupported browsers without requesting the camera', () => {
     Reflect.deleteProperty(navigator, 'mediaDevices')
     renderScanner()
 
     expect(screen.getByRole('alert')).toHaveTextContent('Camera isn’t supported in this browser')
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
-    expect(zxing.constructed).toBe(0)
+    expect(getUserMedia).not.toHaveBeenCalled()
   })
 
   it('explains that HTTPS is required on insecure origins', () => {
@@ -185,26 +311,39 @@ describe('BarcodeScanner', () => {
     renderScanner()
 
     expect(screen.getByRole('alert')).toHaveTextContent('Camera needs a secure connection')
-    expect(zxing.constructed).toBe(0)
+    expect(getUserMedia).not.toHaveBeenCalled()
   })
 })
 
 describe('scanning from the home page', () => {
-  it('only requests the camera after "Scan barcode" and looks up the detected product', async () => {
-    const fetchMock = mockApi(() => ({ body: nutellaProduct }))
-    const camera = cameraStarts()
+  it('only requests the camera after "Scan barcode" and shows the detected barcode', async () => {
+    const fetchMock = mockApi(() => undefined)
+    const camera = fakeCamera()
+    getUserMedia.mockResolvedValue(camera.stream)
+    const decoder = zxingStarts()
     const { user } = renderApp()
 
-    expect(zxing.decodeFromConstraints).not.toHaveBeenCalled()
+    expect(getUserMedia).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: 'Scan barcode' }))
     expect(await screen.findByRole('dialog', { name: 'Scan a barcode' })).toBeInTheDocument()
-    await screen.findByText(/hold the barcode/i)
+    await screen.findByText(/20–30 cm away/)
 
-    camera.emit('0098008952506')
+    decoder.emit('0012345678905')
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Nutella' })).toBeInTheDocument()
+    // The barcode is shown as read, leading zeros included, without any network request.
+    expect(await screen.findByText('Barcode detected')).toBeInTheDocument()
+    expect(screen.getByText('0012345678905')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(camera.controls.stop).toHaveBeenCalled()
-    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/products/barcode/0098008952506')
+    expect(camera.track.stop).toHaveBeenCalled()
+    expect(fetchMock).not.toHaveBeenCalled()
+
+    // Scanning again reopens the camera and clears the previous result.
+    const secondCamera = fakeCamera()
+    getUserMedia.mockResolvedValue(secondCamera.stream)
+    await user.click(screen.getByRole('button', { name: 'Scan again' }))
+    expect(await screen.findByRole('dialog', { name: 'Scan a barcode' })).toBeInTheDocument()
+    expect(screen.queryByText('Barcode detected')).not.toBeInTheDocument()
+    await screen.findByText(/20–30 cm away/)
+    expect(getUserMedia).toHaveBeenCalledTimes(2)
   })
 })
