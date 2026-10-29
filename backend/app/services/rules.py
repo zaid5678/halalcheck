@@ -34,5 +34,11 @@ def check_ingredients(text: str) -> list[Reason]:
     return list(reasons.values())
 
 
+def is_ruled_halal(text: str) -> bool:
+    """True when every listed term in `text` is ruled halal, so the LLM can't re-flag it."""
+    rulings = [_BY_TERM[m.group(1).lower()]["ruling"] for m in _PATTERN.finditer(text)]
+    return bool(rulings) and all(ruling == "halal" for ruling in rulings)
+
+
 def overall_verdict(reasons: list[Reason]) -> Ruling:
     return max((r.ruling for r in reasons), key=_SEVERITY.__getitem__, default="halal")

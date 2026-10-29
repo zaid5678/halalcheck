@@ -1,6 +1,6 @@
 import pytest
 
-from app.services.rules import check_ingredients, overall_verdict
+from app.services.rules import check_ingredients, is_ruled_halal, overall_verdict
 
 
 def rulings_for(text: str) -> dict[str, str]:
@@ -41,3 +41,28 @@ def test_overall_verdict() -> None:
     assert overall_verdict(check_ingredients("pork, gelatine")) == "haram"
     assert overall_verdict(check_ingredients("sugar, gelatine")) == "doubtful"
     assert overall_verdict(check_ingredients("sugar, salt")) == "halal"
+
+
+def test_e476_is_doubtful() -> None:
+    assert rulings_for("Emulsifiers (Soya Lecithin, E476)") == {"e476": "doubtful"}
+
+
+DIET_COKE = (
+    "Carbonated Water, Colour (Caramel E150d), Sweeteners (Aspartame, Acesulfame K), "
+    "Natural Flavourings Including Caffeine, Phosphoric Acid, Citric Acid."
+)
+
+
+def test_diet_coke_is_halal() -> None:
+    assert check_ingredients(DIET_COKE) == []
+    assert overall_verdict(check_ingredients(DIET_COKE)) == "halal"
+
+
+@pytest.mark.parametrize("text", ["Natural Flavourings", "flavouring", "Natural flavors"])
+def test_plain_flavourings_are_halal(text: str) -> None:
+    assert is_ruled_halal(text)
+
+
+def test_named_concerns_in_flavourings_still_flagged() -> None:
+    assert rulings_for("Bacon flavouring") == {"bacon": "haram"}
+    assert not is_ruled_halal("Bacon flavouring")
