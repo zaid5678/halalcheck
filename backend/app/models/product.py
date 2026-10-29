@@ -52,4 +52,4 @@ class ErrorResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str = "ok"
-    ocr_available: bool
+    ai_configured: bool

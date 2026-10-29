@@ -19,7 +19,3 @@ select = ["E", "F", "I", "B", "UP", "SIM"]
 python_version = "3.11"
 strict = true
 plugins = ["pydantic.mypy"]
-
-[[tool.mypy.overrides]]
-module = ["pytesseract"]
-ignore_missing_imports = true

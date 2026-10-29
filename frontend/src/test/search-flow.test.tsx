@@ -100,6 +100,6 @@ describe('product search', () => {
 
     expect(await screen.findByText('Product search is coming soon')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
-    expect(screen.getAllByRole('link', { name: 'Photograph ingredients' }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('link', { name: 'Scan ingredients' }).length).toBeGreaterThan(0)
   })
 })

@@ -2,11 +2,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 
-def test_health_reports_ocr_status(client: TestClient) -> None:
+def test_health_reports_ai_status(client: TestClient) -> None:
     response = client.get("/api/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "ocr_available": True}
+    assert response.json()["status"] == "ok"
+    assert "ai_configured" in response.json()
 
 
 def test_search_reports_lookup_unavailable(client: TestClient) -> None:

@@ -89,7 +89,7 @@ describe('product details', () => {
       await screen.findByRole('heading', { name: 'Product lookup is coming soon' }),
     ).toBeInTheDocument()
     expect(screen.getByText('0012345678905')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Photograph ingredients' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Scan ingredients' })).toHaveAttribute(
       'href',
       '/ingredients',
     )

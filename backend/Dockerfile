@@ -2,14 +2,7 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    # Tesseract's multithreading slows it down on small shared CPUs such as Render's free tier.
-    OMP_THREAD_LIMIT=1
-
-# Tesseract OCR engine, English language data and orientation detection (osd).
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng tesseract-ocr-osd \
-    && rm -rf /var/lib/apt/lists/*
+    PIP_NO_CACHE_DIR=1
 
 WORKDIR /srv
 COPY requirements.txt .

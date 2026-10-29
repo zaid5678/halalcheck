@@ -45,12 +45,12 @@ export function ProductPage() {
         <EmptyState title="Product lookup is coming soon">
           <p>
             Barcode <span className="font-mono text-ink">{barcode}</span> was read, but product
-            information isn’t available in HalalCheck yet. You can photograph the ingredients list
+            information isn’t available in HalalCheck yet. You can scan the ingredients list
             instead.
           </p>
           <Link to="/ingredients" className="btn-primary mt-4 gap-2">
             <CameraIcon className="size-5" />
-            Photograph ingredients
+            Scan ingredients
           </Link>
         </EmptyState>
       )}
@@ -59,10 +59,10 @@ export function ProductPage() {
         <EmptyState title="Product not found">
           <p>
             No product with barcode <span className="font-mono text-ink">{barcode}</span> was
-            found. Check the number, or photograph the ingredients list instead.
+            found. Check the number, or scan the ingredients list instead.
           </p>
           <Link to="/ingredients" className="btn-secondary mt-4">
-            Photograph ingredients
+            Scan ingredients
           </Link>
         </EmptyState>
       )}

@@ -43,7 +43,7 @@ export function HomePage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Check a product</h1>
-        <p className="mt-1 text-muted">Search, scan a barcode, or photograph the ingredients list.</p>
+        <p className="mt-1 text-muted">Search, scan a barcode, or scan an ingredients label.</p>
       </div>
 
       <FeatureCard
@@ -111,12 +111,12 @@ export function HomePage() {
 
         <FeatureCard
           icon={<LabelTextIcon className="size-5" />}
-          title="Photograph ingredients"
-          description="Extract the ingredients from a packaging label."
+          title="Scan ingredients"
+          description="Photograph an ingredients label for an AI halal assessment."
         >
           <Link to="/ingredients" className="btn-primary h-12 w-full gap-2">
             <CameraIcon className="size-5" />
-            Photograph ingredients
+            Scan ingredients
           </Link>
         </FeatureCard>
       </div>

@@ -25,11 +25,11 @@ export function SearchResults({ query, page, onPageChange }: SearchResultsProps)
     return (
       <EmptyState title="Product search is coming soon">
         <p>
-          Searching by name isn’t available yet. In the meantime, you can photograph a product’s
+          Searching by name isn’t available yet. In the meantime, you can scan a product’s
           ingredients list.
         </p>
         <Link to="/ingredients" className="btn-secondary mt-4">
-          Photograph ingredients
+          Scan ingredients
         </Link>
       </EmptyState>
     )

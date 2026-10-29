@@ -1,20 +1,31 @@
-import type { IngredientsExtraction } from '../types/ingredients'
+import type { IngredientsAnalysis } from '../types/analysis'
 import { apiRequest } from './api'
 
-// Generous: a sleeping free-tier server can take up to a minute to start before OCR even begins.
-const EXTRACT_TIMEOUT_MS = 120_000
+// AI analysis typically takes 15–40 seconds, and a sleeping free-tier server can take up to a
+// minute to start first.
+const ANALYZE_TIMEOUT_MS = 180_000
 
-export function extractIngredients(
-  image: Blob,
-  fileName: string,
-  signal?: AbortSignal,
-): Promise<IngredientsExtraction> {
+interface AnalyzeOptions {
+  image: Blob | null
+  fileName?: string
+  /** Ingredients text corrected by the user; takes precedence over what the photo shows. */
+  correctedText?: string | null
+  signal?: AbortSignal
+}
+
+export function analyzeIngredients({
+  image,
+  fileName = 'label.jpg',
+  correctedText,
+  signal,
+}: AnalyzeOptions): Promise<IngredientsAnalysis> {
   const body = new FormData()
-  body.append('image', image, fileName)
-  return apiRequest<IngredientsExtraction>('/api/ingredients/extract', {
+  if (image) body.append('image', image, fileName)
+  if (correctedText) body.append('ingredients_text', correctedText)
+  return apiRequest<IngredientsAnalysis>('/api/ingredients/analyze', {
     method: 'POST',
     body,
     signal,
-    timeoutMs: EXTRACT_TIMEOUT_MS,
+    timeoutMs: ANALYZE_TIMEOUT_MS,
   })
 }

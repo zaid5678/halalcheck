@@ -1,6 +1,4 @@
 # Render Blueprint for the HalalCheck API. In Render: New > Blueprint > select this repository.
-# Docker is used (rather than Render's Python runtime) because OCR needs the Tesseract system
-# package installed.
 services:
   - type: web
     name: halalcheck-api
@@ -16,8 +14,11 @@ services:
       # Your Vercel site URL(s), comma-separated, e.g. https://halalcheck.vercel.app
       - key: HALALCHECK_CORS_ORIGINS
         sync: false
-      # The free instance has 512 MB RAM and a fraction of a CPU: process one image at a time.
-      - key: HALALCHECK_OCR_MAX_CONCURRENCY
-        value: "1"
+      # OpenRouter API key for ingredient analysis (https://openrouter.ai/keys). Secret.
+      - key: OPENROUTER_API_KEY
+        sync: false
+      # Any OpenRouter model with image input and structured outputs.
+      - key: OPENROUTER_MODEL
+        value: anthropic/claude-sonnet-5.5
       - key: HALALCHECK_LOG_LEVEL
         value: INFO

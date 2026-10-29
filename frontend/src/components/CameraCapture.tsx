@@ -119,7 +119,7 @@ export function CameraCapture({ onCapture, onClose, onUploadInstead }: CameraCap
     >
       <div className="flex items-center justify-between gap-3 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-3">
         <h2 id={titleId} className="text-lg font-semibold">
-          Photograph ingredients
+          Photograph the label
         </h2>
         <button
           ref={closeButtonRef}

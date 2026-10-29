@@ -1,97 +1,250 @@
 import { act, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { IngredientsExtraction } from '../types/ingredients'
+import type { IngredientFinding, IngredientsAnalysis } from '../types/analysis'
 import { mockApi, renderApp } from './utils'
 
-const extraction: IngredientsExtraction = {
-  text: 'INGREDIENTS: Wheat flour, sugar,\ngelatine (beef), emulsifier (E471).',
-  confidence: 91.2,
-  word_count: 9,
-  uncertain_words: [],
-  low_confidence: false,
+function finding(original: string, overrides: Partial<IngredientFinding> = {}): IngredientFinding {
+  return {
+    original_text: original,
+    standardised_name: null,
+    translation: null,
+    e_number: null,
+    possible_sources: ['plant'],
+    source_established: false,
+    assessment: 'likely_permissible',
+    explanation: `${original} is plant-derived.`,
+    evidence: 'General knowledge of how it is made.',
+    evidence_basis: 'general_knowledge',
+    needs_more_information: false,
+    ...overrides,
+  }
+}
+
+/** A multilingual label with one ambiguous ingredient (E471) and two plain ones. */
+const analysis: IngredientsAnalysis = {
+  label_readable: true,
+  readability_notes: null,
+  detected_language: ['Arabic', 'French'],
+  extracted_ingredients_text: 'المكونات: سكر، ملح / émulsifiant : mono- et diglycérides (E471)',
+  overall_status: 'needs_further_investigation',
+  confidence: 'medium',
+  summary: 'The source of the emulsifier E471 is not stated, so the product needs checking.',
+  ingredients: [
+    finding('سكر', { translation: 'sugar', standardised_name: 'Sugar' }),
+    finding('mono- et diglycérides (E471)', {
+      translation: 'mono- and diglycerides',
+      standardised_name: 'Mono- and diglycerides of fatty acids',
+      e_number: 'E471',
+      possible_sources: ['plant', 'animal', 'pork'],
+      assessment: 'unknown',
+      explanation: 'E471 can be made from vegetable oils or animal fats, including pork fat.',
+      evidence: 'E471 is commercially produced from both plant and animal fats.',
+      needs_more_information: true,
+    }),
+    finding('ملح', {
+      translation: 'salt',
+      possible_sources: ['mineral'],
+      evidence: 'Printed as salt.',
+      evidence_basis: 'label',
+    }),
+  ],
+  prohibited_findings: [],
+  concerns: [{ ingredient: 'E471', description: 'Its animal or plant origin is not stated.' }],
+  certification_information: { marks_visible: [], notes: 'No certification mark is visible.' },
+  limitations: ['Sources could not be checked with the manufacturer.'],
+  next_steps: ['Ask the manufacturer whether the E471 is plant-derived.'],
+  model: 'anthropic/claude-sonnet-5.5',
+  used_corrected_text: false,
+  adjustments: [],
 }
 
 function photo(name = 'label.jpg', type = 'image/jpeg') {
   return new File([new Uint8Array(2048)], name, { type })
 }
 
-function uploadInput() {
-  return screen.getByLabelText('Upload an image file') as HTMLInputElement
+const uploadInput = () => screen.getByLabelText('Upload an image file') as HTMLInputElement
+const cameraInput = () => screen.getByLabelText('Take a photo with your camera') as HTMLInputElement
+
+function analyzeRoute(...responses: { status?: number; body: unknown }[]) {
+  let call = 0
+  return mockApi((url) => {
+    if (url.pathname !== '/api/ingredients/analyze') return undefined
+    return responses[Math.min(call++, responses.length - 1)]
+  })
 }
 
-function cameraInput() {
-  return screen.getByLabelText('Take a photo with your camera') as HTMLInputElement
+function sentForm(fetchMock: ReturnType<typeof mockApi>, index = 0): FormData {
+  const [, init] = fetchMock.mock.calls[index] as unknown as [string, RequestInit]
+  expect(init.method).toBe('POST')
+  return init.body as FormData
 }
 
-function extractRoute(response: { status?: number; body: unknown }) {
-  return mockApi((url) => (url.pathname === '/api/ingredients/extract' ? response : undefined))
+async function uploadAndAnalyse(user: ReturnType<typeof renderApp>['user']) {
+  await user.upload(uploadInput(), photo())
+  await user.click(screen.getByRole('button', { name: 'Analyse ingredients' }))
 }
 
-describe('photograph ingredients', () => {
+describe('scan ingredients', () => {
   it('is offered on the home page as a separate feature', async () => {
     const { user } = renderApp()
 
     expect(screen.getByRole('heading', { name: 'Search a product' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Scan a barcode' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Photograph ingredients' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Scan ingredients' })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('link', { name: 'Photograph ingredients' }))
-    expect(screen.getByRole('heading', { level: 1, name: 'Photograph ingredients' })).toBeInTheDocument()
+    await user.click(screen.getByRole('link', { name: 'Scan ingredients' }))
+    expect(screen.getByRole('heading', { level: 1, name: 'Scan ingredients' })).toBeInTheDocument()
   })
 
-  it('uploads a photo, previews it, extracts editable text and copies it', async () => {
-    const fetchMock = extractRoute({ body: extraction })
+  it('uploads a photo, previews it and shows the assessment', async () => {
+    const fetchMock = analyzeRoute({ body: analysis })
     const { user } = renderApp('/ingredients')
 
     await user.upload(uploadInput(), photo())
-
     expect(screen.getByRole('img', { name: /your photo of the ingredients label/i })).toBeInTheDocument()
-    expect(screen.getByText('label.jpg')).toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalled()
 
-    await user.click(screen.getByRole('button', { name: 'Read ingredients' }))
+    await user.click(screen.getByRole('button', { name: 'Analyse ingredients' }))
 
-    const textarea = await screen.findByRole('textbox', { name: 'Ingredients text' })
-    expect(textarea).toHaveValue(extraction.text)
-    expect(screen.getByText('Read with 91% confidence')).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: 'Needs further investigation' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Medium confidence')).toBeInTheDocument()
+    expect(screen.getByText(analysis.summary)).toBeInTheDocument()
 
-    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
-    expect(url).toBe('/api/ingredients/extract')
-    expect(init.method).toBe('POST')
-    const sent = (init.body as FormData).get('image') as File
-    expect(sent.name).toBe('label.jpg')
-
-    // Users can correct OCR mistakes, undo, and copy the result.
-    await user.clear(textarea)
-    await user.type(textarea, 'Wheat flour, sugar')
-    expect(screen.getByRole('button', { name: 'Undo my changes' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Copy text' }))
-    expect(await navigator.clipboard.readText()).toBe('Wheat flour, sugar')
-    expect(screen.getByText('Copied to clipboard.')).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: 'Undo my changes' }))
-    expect(textarea).toHaveValue(extraction.text)
-
-    // Nothing on the page makes a halal or haram claim.
-    expect(document.body).not.toHaveTextContent(/\bharam\b|is halal\b|not halal\b/i)
-    expect(screen.getByText(/hasn’t assessed these ingredients/i)).toBeInTheDocument()
+    const form = sentForm(fetchMock)
+    expect((form.get('image') as File).name).toBe('label.jpg')
+    expect(form.get('ingredients_text')).toBeNull()
   })
 
-  it('flags hard-to-read photos and words to double-check', async () => {
-    extractRoute({
-      body: { ...extraction, confidence: 48, low_confidence: true, uncertain_words: ['gelatlne', 'E47l'] },
+  it('shows ingredient findings with original names, translations and evidence basis', async () => {
+    analyzeRoute({ body: analysis })
+    const { user } = renderApp('/ingredients')
+    await uploadAndAnalyse(user)
+
+    await screen.findByRole('heading', { name: 'Needs further investigation' })
+    expect(screen.getByText('Label language: Arabic, French')).toBeInTheDocument()
+
+    // Ingredients needing attention are listed first, with their original wording kept.
+    const flagged = screen.getByRole('list', { name: 'Ingredients to check' })
+    const [e471] = within(flagged).getAllByRole('listitem')
+    expect(e471).toHaveTextContent('mono- et diglycérides (E471)')
+    expect(e471).toHaveTextContent('mono- and diglycerides · Mono- and diglycerides of fatty acids')
+    expect(e471).toHaveTextContent('Unknown source')
+    expect(e471).toHaveTextContent('Pork')
+    expect(e471).toHaveTextContent('Source not stated')
+    expect(e471).toHaveTextContent('AI general knowledge (not independently verified):')
+    expect(e471).toHaveTextContent('Needs confirmation from the manufacturer')
+
+    // Plainly permissible ingredients are collapsed but still listed.
+    const permissible = screen.getByRole('list', { name: 'Likely permissible ingredients' })
+    const items = within(permissible).getAllByRole('listitem')
+    expect(items.map((item) => item.querySelector('[dir="auto"]')?.textContent)).toEqual(['سكر', 'ملح'])
+    expect(items[1]).toHaveTextContent('Evidence from the label:')
+
+    expect(screen.getByText('No halal certification visible')).toBeInTheDocument()
+    expect(screen.getByText(/Ask the manufacturer whether the E471/)).toBeInTheDocument()
+    expect(screen.getByText(/not a religious ruling or certification/i)).toBeInTheDocument()
+    expect(screen.getByText(/anthropic\/claude-sonnet-5.5/)).toBeInTheDocument()
+  })
+
+  it('shows prohibited findings and HalalCheck’s safety adjustments separately', async () => {
+    analyzeRoute({
+      body: {
+        ...analysis,
+        overall_status: 'potentially_non_halal',
+        confidence: 'high',
+        prohibited_findings: [
+          { ingredient: 'دهن الخنزير', source: 'pork', evidence: 'The label lists pork fat.' },
+        ],
+        adjustments: [
+          'HalalCheck changed the overall result from “Likely halal” to “Potentially non-halal” because an ingredient from a prohibited source was identified.',
+        ],
+      },
     })
     const { user } = renderApp('/ingredients')
+    await uploadAndAnalyse(user)
 
-    await user.upload(uploadInput(), photo())
-    await user.click(screen.getByRole('button', { name: 'Read ingredients' }))
+    expect(await screen.findByRole('heading', { name: 'Potentially non-halal' })).toBeInTheDocument()
+    const prohibited = screen.getByRole('heading', { name: /prohibited source identified/i })
+      .parentElement!
+    expect(prohibited).toHaveTextContent('دهن الخنزير')
+    expect(prohibited).toHaveTextContent('The label lists pork fat.')
+    expect(screen.getByRole('heading', { name: 'HalalCheck safety check' }).parentElement!
+      .parentElement!).toHaveTextContent('changed the overall result')
+  })
 
-    expect(await screen.findByText(/this photo was hard to read/i)).toBeInTheDocument()
-    const list = screen.getByRole('list', { name: 'Words to double-check' })
-    expect(within(list).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
-      'gelatlne',
-      'E47l',
-    ])
+  it('shows visible certification marks without vouching for them', async () => {
+    analyzeRoute({
+      body: {
+        ...analysis,
+        certification_information: {
+          marks_visible: ['HMC Halal logo'],
+          notes: 'An HMC logo is printed near the ingredients.',
+        },
+      },
+    })
+    const { user } = renderApp('/ingredients')
+    await uploadAndAnalyse(user)
+
+    expect(await screen.findByText('HMC Halal logo')).toBeInTheDocument()
+    expect(screen.getByText(/can’t confirm whether a logo is genuine/)).toBeInTheDocument()
+  })
+
+  it('lets users correct the ingredients text and re-run the assessment', async () => {
+    const fetchMock = analyzeRoute(
+      { body: analysis },
+      {
+        body: {
+          ...analysis,
+          overall_status: 'likely_halal',
+          summary: 'With the corrected text, no concerns were identified.',
+          used_corrected_text: true,
+        },
+      },
+    )
+    const { user } = renderApp('/ingredients')
+    await uploadAndAnalyse(user)
+    await screen.findByRole('heading', { name: 'Needs further investigation' })
+
+    const editor = screen.getByRole('textbox', { name: 'Ingredients as read from the label' })
+    expect(editor).toHaveValue(analysis.extracted_ingredients_text)
+    const rerun = screen.getByRole('button', { name: 'Re-run assessment' })
+    expect(rerun).toBeDisabled()
+
+    await user.clear(editor)
+    await user.type(editor, 'sugar, salt, emulsifier: sunflower lecithin')
+    expect(rerun).toBeEnabled()
+    await user.click(rerun)
+
+    expect(await screen.findByRole('heading', { name: 'Likely halal' })).toBeInTheDocument()
+    expect(screen.getByText(/using your corrected ingredients text/)).toBeInTheDocument()
+
+    const form = sentForm(fetchMock, 1)
+    expect(form.get('ingredients_text')).toBe('sugar, salt, emulsifier: sunflower lecithin')
+    // The photo is sent again so certification marks can still be considered.
+    expect(form.get('image')).toBeInstanceOf(File)
+  })
+
+  it('asks for a clearer photo when the label is unreadable', async () => {
+    analyzeRoute({
+      body: {
+        ...analysis,
+        label_readable: false,
+        readability_notes: 'The text is blurred. Move closer and hold the camera steady.',
+        confidence: 'low',
+        ingredients: [],
+        extracted_ingredients_text: '',
+      },
+    })
+    const { user } = renderApp('/ingredients')
+    await uploadAndAnalyse(user)
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Please take a clearer photo')
+    expect(alert).toHaveTextContent('The text is blurred.')
+    expect(within(alert).getByRole('button', { name: 'Retake' })).toBeInTheDocument()
+    expect(screen.getByText('No ingredients could be identified.')).toBeInTheDocument()
   })
 
   it('lets users replace the photo before submitting', async () => {
@@ -104,118 +257,94 @@ describe('photograph ingredients', () => {
     await user.upload(uploadInput(), photo('second.png', 'image/png'))
     expect(screen.getByText('second.png')).toBeInTheDocument()
     expect(revoke).toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: 'Retake' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Choose another' })).toBeInTheDocument()
   })
 
   it.each([
     ['animation.gif', 'image/gif', 'Please choose a JPEG, PNG or WebP image.'],
     ['IMG_1234.HEIC', 'image/heic', 'HEIC photos aren’t supported yet'],
-  ])('rejects %s before uploading', async (name, type, message) => {
-    const fetchMock = extractRoute({ body: extraction })
+  ])('rejects %s before uploading', (name, type, message) => {
+    const fetchMock = analyzeRoute({ body: analysis })
     renderApp('/ingredients')
 
     fireEvent.change(uploadInput(), { target: { files: [photo(name, type)] } })
 
     expect(screen.getByRole('alert')).toHaveTextContent(message)
-    expect(screen.queryByRole('button', { name: 'Read ingredients' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Analyse ingredients' })).not.toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('explains when no text could be read', async () => {
-    extractRoute({
-      status: 422,
-      body: {
-        error: {
-          code: 'no_text_found',
-          message: 'We couldn’t read any text in this photo. Try again in good light.',
+  it('retries after a malformed AI response', async () => {
+    analyzeRoute(
+      {
+        status: 502,
+        body: {
+          error: {
+            code: 'ai_invalid_response',
+            message: 'The analysis came back incomplete or in an unexpected format.',
+          },
         },
       },
-    })
+      { body: analysis },
+    )
     const { user } = renderApp('/ingredients')
-
-    await user.upload(uploadInput(), photo())
-    await user.click(screen.getByRole('button', { name: 'Read ingredients' }))
+    await uploadAndAnalyse(user)
 
     const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('No text found')
-    expect(alert).toHaveTextContent('We couldn’t read any text in this photo.')
-    // Retrying the same unreadable photo won't help; offer a different one instead.
-    expect(within(alert).queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+    expect(alert).toHaveTextContent('Couldn’t analyse this photo')
+    expect(alert).toHaveTextContent('incomplete or in an unexpected format')
 
-    await user.click(within(alert).getByRole('button', { name: 'Use a different photo' }))
-    expect(screen.getByRole('button', { name: 'Upload image' })).toBeInTheDocument()
+    await user.click(within(alert).getByRole('button', { name: 'Try again' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Needs further investigation' }),
+    ).toBeInTheDocument()
   })
 
   it.each([
-    [415, 'unsupported_image_type', 'Unsupported image'],
-    [413, 'image_too_large', 'Image too large'],
-  ])('shows server-side validation errors (%s)', async (status, code, title) => {
-    extractRoute({ status, body: { error: { code, message: 'Server says no.' } } })
+    [415, 'unsupported_image_type', 'Unsupported image', false],
+    [429, 'too_many_requests', 'Scan limit reached', false],
+    [503, 'ai_not_configured', 'Analysis isn’t available', true],
+    [504, 'ai_timeout', 'Couldn’t analyse this photo', true],
+  ])('shows %s %s errors', async (status, code, title, canRetry) => {
+    analyzeRoute({ status, body: { error: { code, message: 'Server message.' } } })
     const { user } = renderApp('/ingredients')
-
-    await user.upload(uploadInput(), photo())
-    await user.click(screen.getByRole('button', { name: 'Read ingredients' }))
+    await uploadAndAnalyse(user)
 
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent(title)
-    expect(alert).toHaveTextContent('Server says no.')
-  })
-
-  it('retries the same photo after an OCR failure', async () => {
-    let calls = 0
-    mockApi(() => {
-      calls += 1
-      return calls === 1
-        ? {
-            status: 503,
-            body: { error: { code: 'ocr_unavailable', message: 'Text recognition is unavailable.' } },
-          }
-        : { body: extraction }
-    })
-    const { user } = renderApp('/ingredients')
-
-    await user.upload(uploadInput(), photo())
-    await user.click(screen.getByRole('button', { name: 'Read ingredients' }))
-    const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('Text recognition is unavailable.')
-
-    await user.click(within(alert).getByRole('button', { name: 'Try again' }))
-    expect(await screen.findByRole('textbox', { name: 'Ingredients text' })).toHaveValue(extraction.text)
+    expect(alert).toHaveTextContent('Server message.')
+    expect(!!within(alert).queryByRole('button', { name: 'Try again' })).toBe(canRetry)
+    expect(within(alert).getByRole('button', { name: 'Use a different photo' })).toBeInTheDocument()
   })
 
   it('handles network failures', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
     const { user } = renderApp('/ingredients')
-
-    await user.upload(uploadInput(), photo())
-    await user.click(screen.getByRole('button', { name: 'Read ingredients' }))
+    await uploadAndAnalyse(user)
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/could not reach halalcheck/i)
   })
 
-  it('can cancel while processing', async () => {
+  it('can cancel while analysing', async () => {
     let aborted = false
     vi.stubGlobal(
       'fetch',
-      vi.fn((_url: string, init: RequestInit) => {
-        return new Promise((_resolve, reject) => {
-          init.signal?.addEventListener('abort', () => {
-            aborted = true
-            reject(new DOMException('Aborted', 'AbortError'))
-          })
-        })
-      }),
+      vi.fn(
+        (_url: string, init: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            init.signal?.addEventListener('abort', () => {
+              aborted = true
+              reject(new DOMException('Aborted', 'AbortError'))
+            })
+          }),
+      ),
     )
     const { user } = renderApp('/ingredients')
-
-    await user.upload(uploadInput(), photo())
-    await user.click(screen.getByRole('button', { name: 'Read ingredients' }))
-    expect(await screen.findByText('Reading the label…')).toBeInTheDocument()
+    await uploadAndAnalyse(user)
+    expect(await screen.findByText('Analysing ingredients…')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(aborted).toBe(true)
-    expect(screen.getByRole('button', { name: 'Read ingredients' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Analyse ingredients' })).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })
@@ -258,7 +387,7 @@ describe('taking a photo', () => {
 
     await user.click(screen.getByRole('button', { name: 'Take photo' }))
 
-    const dialog = await screen.findByRole('dialog', { name: 'Photograph ingredients' })
+    const dialog = await screen.findByRole('dialog', { name: 'Photograph the label' })
     expect(await within(dialog).findByText(/fill the frame/i)).toBeInTheDocument()
     expect(getUserMedia).toHaveBeenCalledTimes(1)
 
