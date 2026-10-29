@@ -1,14 +1,14 @@
 import { act, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { IngredientsExtraction } from '../types/ingredients'
+import type { HalalVerdict } from '../types/halal'
 import { mockApi, renderApp } from './utils'
 
-const extraction: IngredientsExtraction = {
-  text: 'INGREDIENTS: Wheat flour, sugar,\ngelatine (beef), emulsifier (E471).',
-  confidence: 91.2,
-  word_count: 9,
-  uncertain_words: [],
-  low_confidence: false,
+const extraction: HalalVerdict = {
+  verdict: 'doubtful',
+  reasons: [{ ingredient: 'E471', ruling: 'doubtful', note: 'Can be animal or plant fat' }],
+  ingredients_text: 'Wheat flour, sugar, emulsifier (E471)',
+  ai_checked: true,
+  product: null,
 }
 
 function photo(name = 'label.jpg', type = 'image/jpeg') {
@@ -24,7 +24,7 @@ function cameraInput() {
 }
 
 function extractRoute(response: { status?: number; body: unknown }) {
-  return mockApi((url) => (url.pathname === '/api/ingredients/extract' ? response : undefined))
+  return mockApi((url) => (url.pathname === '/api/halal/photo' ? response : undefined))
 }
 
 describe('photograph ingredients', () => {
@@ -39,7 +39,7 @@ describe('photograph ingredients', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Photograph ingredients' })).toBeInTheDocument()
   })
 
-  it('uploads a photo, previews it, extracts editable text and copies it', async () => {
+  it('uploads a photo, previews it and shows the halal check', async () => {
     const fetchMock = extractRoute({ body: extraction })
     const { user } = renderApp('/ingredients')
 
@@ -49,49 +49,19 @@ describe('photograph ingredients', () => {
     expect(screen.getByText('label.jpg')).toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalled()
 
-    await user.click(screen.getByRole('button', { name: 'Read ingredients' }))
+    await user.click(screen.getByRole('button', { name: 'Check ingredients' }))
 
-    const textarea = await screen.findByRole('textbox', { name: 'Ingredients text' })
-    expect(textarea).toHaveValue(extraction.text)
-    expect(screen.getByText('Read with 91% confidence')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Doubtful' })).toBeInTheDocument()
+    expect(screen.getByText('1 ingredient needs checking')).toBeInTheDocument()
+    expect(screen.getByText('Can be animal or plant fat')).toBeInTheDocument()
+    expect(screen.getByText('Wheat flour, sugar, emulsifier (E471)')).toBeInTheDocument()
+    expect(screen.getByText(/not a fatwa or certification/)).toBeInTheDocument()
 
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
-    expect(url).toBe('/api/ingredients/extract')
+    expect(url).toBe('/api/halal/photo')
     expect(init.method).toBe('POST')
     const sent = (init.body as FormData).get('image') as File
     expect(sent.name).toBe('label.jpg')
-
-    // Users can correct OCR mistakes, undo, and copy the result.
-    await user.clear(textarea)
-    await user.type(textarea, 'Wheat flour, sugar')
-    expect(screen.getByRole('button', { name: 'Undo my changes' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Copy text' }))
-    expect(await navigator.clipboard.readText()).toBe('Wheat flour, sugar')
-    expect(screen.getByText('Copied to clipboard.')).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: 'Undo my changes' }))
-    expect(textarea).toHaveValue(extraction.text)
-
-    // Nothing on the page makes a halal or haram claim.
-    expect(document.body).not.toHaveTextContent(/\bharam\b|is halal\b|not halal\b/i)
-    expect(screen.getByText(/hasn’t assessed these ingredients/i)).toBeInTheDocument()
-  })
-
-  it('flags hard-to-read photos and words to double-check', async () => {
-    extractRoute({
-      body: { ...extraction, confidence: 48, low_confidence: true, uncertain_words: ['gelatlne', 'E47l'] },
-    })
-    const { user } = renderApp('/ingredients')
-
-    await user.upload(uploadInput(), photo())
-    await user.click(screen.getByRole('button', { name: 'Read ingredients' }))
-
-    expect(await screen.findByText(/this photo was hard to read/i)).toBeInTheDocument()
-    const list = screen.getByRole('list', { name: 'Words to double-check' })
-    expect(within(list).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
-      'gelatlne',
-      'E47l',
-    ])
   })
 
   it('lets users replace the photo before submitting', async () => {
@@ -118,28 +88,28 @@ describe('photograph ingredients', () => {
     fireEvent.change(uploadInput(), { target: { files: [photo(name, type)] } })
 
     expect(screen.getByRole('alert')).toHaveTextContent(message)
-    expect(screen.queryByRole('button', { name: 'Read ingredients' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Check ingredients' })).not.toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('explains when no text could be read', async () => {
+  it('explains when no ingredients list could be read', async () => {
     extractRoute({
       status: 422,
       body: {
         error: {
-          code: 'no_text_found',
-          message: 'We couldn’t read any text in this photo. Try again in good light.',
+          code: 'unreadable_image',
+          message: 'No ingredients list could be read from this photo.',
         },
       },
     })
     const { user } = renderApp('/ingredients')
 
     await user.upload(uploadInput(), photo())
-    await user.click(screen.getByRole('button', { name: 'Read ingredients' }))
+    await user.click(screen.getByRole('button', { name: 'Check ingredients' }))
 
     const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('No text found')
-    expect(alert).toHaveTextContent('We couldn’t read any text in this photo.')
+    expect(alert).toHaveTextContent('No ingredients list found')
+    expect(alert).toHaveTextContent('No ingredients list could be read from this photo.')
     // Retrying the same unreadable photo won't help; offer a different one instead.
     expect(within(alert).queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
 
@@ -155,33 +125,33 @@ describe('photograph ingredients', () => {
     const { user } = renderApp('/ingredients')
 
     await user.upload(uploadInput(), photo())
-    await user.click(screen.getByRole('button', { name: 'Read ingredients' }))
+    await user.click(screen.getByRole('button', { name: 'Check ingredients' }))
 
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent(title)
     expect(alert).toHaveTextContent('Server says no.')
   })
 
-  it('retries the same photo after an OCR failure', async () => {
+  it('retries the same photo after a check failure', async () => {
     let calls = 0
     mockApi(() => {
       calls += 1
       return calls === 1
         ? {
             status: 503,
-            body: { error: { code: 'ocr_unavailable', message: 'Text recognition is unavailable.' } },
+            body: { error: { code: 'llm_unavailable', message: 'The ingredient checker is unavailable.' } },
           }
         : { body: extraction }
     })
     const { user } = renderApp('/ingredients')
 
     await user.upload(uploadInput(), photo())
-    await user.click(screen.getByRole('button', { name: 'Read ingredients' }))
+    await user.click(screen.getByRole('button', { name: 'Check ingredients' }))
     const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('Text recognition is unavailable.')
+    expect(alert).toHaveTextContent('The ingredient checker is unavailable.')
 
     await user.click(within(alert).getByRole('button', { name: 'Try again' }))
-    expect(await screen.findByRole('textbox', { name: 'Ingredients text' })).toHaveValue(extraction.text)
+    expect(await screen.findByRole('heading', { name: 'Doubtful' })).toBeInTheDocument()
   })
 
   it('handles network failures', async () => {
@@ -189,7 +159,7 @@ describe('photograph ingredients', () => {
     const { user } = renderApp('/ingredients')
 
     await user.upload(uploadInput(), photo())
-    await user.click(screen.getByRole('button', { name: 'Read ingredients' }))
+    await user.click(screen.getByRole('button', { name: 'Check ingredients' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/could not reach halalcheck/i)
   })
@@ -210,12 +180,12 @@ describe('photograph ingredients', () => {
     const { user } = renderApp('/ingredients')
 
     await user.upload(uploadInput(), photo())
-    await user.click(screen.getByRole('button', { name: 'Read ingredients' }))
+    await user.click(screen.getByRole('button', { name: 'Check ingredients' }))
     expect(await screen.findByText('Reading the label…')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(aborted).toBe(true)
-    expect(screen.getByRole('button', { name: 'Read ingredients' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Check ingredients' })).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })

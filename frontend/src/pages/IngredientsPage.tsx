@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
-import { ExtractedIngredients } from '../components/ExtractedIngredients'
 import { ArrowLeftIcon } from '../components/icons'
 import { PhotoPicker, type PhotoSource } from '../components/PhotoPicker'
 import { ErrorState } from '../components/StatusMessages'
+import { VerdictCard } from '../components/VerdictCard'
 import {
   formatFileSize,
   MAX_UPLOAD_BYTES,
@@ -11,8 +11,8 @@ import {
   validateImageFile,
 } from '../lib/image'
 import { ApiError } from '../services/api'
-import { extractIngredients } from '../services/ingredients'
-import type { IngredientsExtraction } from '../types/ingredients'
+import { checkPhoto } from '../services/halal'
+import type { HalalVerdict } from '../types/halal'
 
 interface Photo {
   file: File
@@ -24,13 +24,13 @@ type Stage =
   | { step: 'choose' }
   | { step: 'preview'; photo: Photo }
   | { step: 'processing'; photo: Photo }
-  | { step: 'result'; photo: Photo; result: IngredientsExtraction }
+  | { step: 'result'; photo: Photo; result: HalalVerdict }
   | { step: 'error'; photo: Photo; error: ApiError }
 
 const SLOW_PROCESSING_MS = 8000
 
 const ERROR_TITLES: Record<string, string> = {
-  no_text_found: 'No text found',
+  unreadable_image: 'No ingredients list found',
   unsupported_image_type: 'Unsupported image',
   image_too_large: 'Image too large',
   invalid_image: 'Couldn’t open this image',
@@ -78,7 +78,7 @@ export function IngredientsPage() {
           413,
         )
       }
-      const result = await extractIngredients(upload, current.file.name || 'label.jpg', controller.signal)
+      const result = await checkPhoto(upload, current.file.name || 'label.jpg', controller.signal)
       if (!controller.signal.aborted) setStage({ step: 'result', photo: current, result })
     } catch (error) {
       if (controller.signal.aborted) return
@@ -116,8 +116,8 @@ export function IngredientsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Photograph ingredients</h1>
         <p className="mt-1 text-muted">
-          Take or upload a photo of the ingredients list on the packaging. We’ll read the text so
-          you can check and copy it.
+          Take or upload a photo of the ingredients list on the packaging. We’ll read it and check
+          whether the ingredients are halal.
         </p>
       </div>
 
@@ -140,7 +140,7 @@ export function IngredientsPage() {
       {stage.step === 'preview' && (
         <div className="space-y-3">
           <button type="button" onClick={() => extract(stage.photo)} className="btn-primary h-14 w-full text-base">
-            Read ingredients
+            Check ingredients
           </button>
           <PhotoPicker onSelect={selectPhoto} variant="compact" />
         </div>
@@ -154,7 +154,7 @@ export function IngredientsPage() {
         <ErrorState
           title={ERROR_TITLES[stage.error.code] ?? 'Couldn’t read this photo'}
           message={stage.error.message}
-          onRetry={stage.error.code === 'no_text_found' ? undefined : () => extract(stage.photo)}
+          onRetry={stage.error.code === 'unreadable_image' ? undefined : () => extract(stage.photo)}
         >
           <button type="button" onClick={startOver} className="btn-secondary">
             Use a different photo
@@ -164,9 +164,16 @@ export function IngredientsPage() {
 
       {stage.step === 'result' && (
         <>
-          <ExtractedIngredients key={stage.photo.url} result={stage.result} />
+          <VerdictCard result={stage.result} />
+          <div>
+            <h3 className="mb-2 text-xs font-semibold tracking-wide text-muted uppercase">What we read</h3>
+            <p className="rounded-2xl border border-line bg-surface p-4 leading-relaxed">
+              {stage.result.ingredients_text}
+            </p>
+            <p className="mt-2 text-xs text-muted">Read by AI from your photo. Check it matches the pack.</p>
+          </div>
           <button type="button" onClick={startOver} className="btn-secondary w-full">
-            Photograph another label
+            Check another label
           </button>
         </>
       )}
