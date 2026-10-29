@@ -65,6 +65,10 @@ class Settings(BaseSettings):
     openrouter_max_tokens: int = Field(default=6000, ge=500)
     # Longest image edge sent to the model. Larger photos are scaled down to save tokens.
     analysis_image_max_edge: int = Field(default=2048, ge=512)
+    # Fast model for halal checks: reads ingredient photos and reviews ingredient lists.
+    halal_model: str = "google/gemini-3.1-flash-lite"
+    # Longest image edge sent when reading a label for a halal check.
+    halal_image_max_edge: int = Field(default=1600, ge=512)
     # Analyses allowed per client IP per hour, protecting the OpenRouter balance. 0 disables.
     analysis_rate_limit_per_hour: int = Field(default=30, ge=0)
 
