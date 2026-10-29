@@ -129,7 +129,7 @@ Deploy the backend first, because the frontend needs its URL.
 ### Frontend on Vercel
 
 1. In Vercel, choose **Add New → Project** and import the repository, leaving **Root Directory** as the repository root. [`vercel.json`](vercel.json) handles the rest.
-2. Add the environment variable `VITE_API_BASE_URL` with the exact Render URL from step 4 above, for example `https://halalcheck-api-ab12.onrender.com`. Check that `<that URL>/api/health` opens in your browser first. If you add or change the variable after deploying, redeploy.
+2. The backend URL is set in [`frontend/.env.production`](frontend/.env.production) (`VITE_HALALCHECK_API_URL`), so no Vercel environment variable is needed. If your Render URL changes, update that file and push. Vercel rebuilds automatically. First check that `<that URL>/api/health` opens in your browser.
 3. Make sure `HALALCHECK_CORS_ORIGINS` on Render contains your Vercel URL.
 
 ### Caveats

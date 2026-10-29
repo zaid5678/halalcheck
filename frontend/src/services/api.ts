@@ -9,12 +9,12 @@ export function normaliseApiBaseUrl(raw: string | undefined): string {
 }
 
 // Empty by default so requests go to the same origin (the Vite dev proxy in development).
-// In production, set VITE_API_BASE_URL to the API's URL (e.g. the Render service).
-const API_BASE_URL = normaliseApiBaseUrl(import.meta.env.VITE_API_BASE_URL)
+// In production, set VITE_HALALCHECK_API_URL to the API's URL (e.g. the Render service).
+const API_BASE_URL = normaliseApiBaseUrl(import.meta.env.VITE_HALALCHECK_API_URL)
 
 if (import.meta.env.PROD && !API_BASE_URL) {
   console.warn(
-    'HalalCheck: VITE_API_BASE_URL was not set when this site was built, so API requests go to ' +
+    'HalalCheck: VITE_HALALCHECK_API_URL was not set when this site was built, so API requests go to ' +
       'this site itself. Set it to the backend URL and redeploy.',
   )
 }
@@ -25,7 +25,7 @@ const SERVER_UNREACHABLE_MESSAGE =
 /** The request reached something other than the HalalCheck API (wrong or missing API URL). */
 function misconfigured(status: number, detail: string): ApiError {
   console.error(
-    `HalalCheck: ${detail} Check VITE_API_BASE_URL (currently "${API_BASE_URL || '(not set)'}") ` +
+    `HalalCheck: ${detail} Check VITE_HALALCHECK_API_URL (currently "${API_BASE_URL || '(not set)'}") ` +
       'and redeploy the frontend after changing it.',
   )
   return new ApiError('api_unreachable', SERVER_UNREACHABLE_MESSAGE, status)

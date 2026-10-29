@@ -40,7 +40,7 @@ describe('apiRequest misconfiguration handling', () => {
 
     expect(error.code).toBe('api_unreachable')
     expect(error.message).toBe('HalalCheck couldn’t reach its server. Please try again later.')
-    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('VITE_API_BASE_URL'))
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('VITE_HALALCHECK_API_URL'))
   })
 
   it('explains when the API server has no such route', async () => {
