@@ -17,9 +17,14 @@ class Settings(BaseSettings):
     app_name: str = "HalalCheck API"
     log_level: str = "INFO"
 
-    # Comma-separated list of origins allowed to call the API from a browser.
+    # Comma-separated list of origins allowed to call the API from a browser. Defaults to local
+    # development plus the production site; HALALCHECK_CORS_ORIGINS replaces the whole list.
     cors_origins: Annotated[list[str], NoDecode] = Field(
-        default=["http://localhost:5173", "http://127.0.0.1:5173"]
+        default=[
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "https://halalcheck-psi.vercel.app",
+        ]
     )
 
     # Open Food Facts
@@ -67,7 +72,13 @@ class Settings(BaseSettings):
     @classmethod
     def split_origins(cls, value: object) -> object:
         if isinstance(value, str):
-            return [origin.strip() for origin in value.split(",") if origin.strip()]
+            value = value.split(",")
+        if isinstance(value, list):
+            # Browsers send origins without a trailing slash or path, in lowercase; normalise
+            # pasted URLs such as "https://example.vercel.app/" so they still match.
+            return [
+                str(origin).strip().rstrip("/").lower() for origin in value if str(origin).strip()
+            ]
         return value
 
     @property

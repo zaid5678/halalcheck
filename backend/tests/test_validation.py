@@ -28,3 +28,16 @@ def test_normalise_query_keeps_product_punctuation() -> None:
 
 def test_normalise_query_strips_control_characters() -> None:
     assert normalise_query("milk\x00\x1fchocolate") == "milkchocolate"
+
+
+def test_cors_origins_are_normalised() -> None:
+    from app.config import Settings
+
+    settings = Settings(cors_origins=" https://Example.vercel.app/ , http://localhost:5173,, ")
+    assert settings.cors_origins == ["https://example.vercel.app", "http://localhost:5173"]
+
+
+def test_cors_origins_default_includes_production_site() -> None:
+    from app.config import Settings
+
+    assert "https://halalcheck-psi.vercel.app" in Settings.model_fields["cors_origins"].default
