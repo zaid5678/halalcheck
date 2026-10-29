@@ -1,0 +1,44 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Figtree', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --color-canvas: #f6f7f4;
+  --color-surface: #ffffff;
+  --color-ink: #17201b;
+  --color-muted: #5b665f;
+  --color-line: #e2e6e0;
+
+  --color-brand-50: #eef6f1;
+  --color-brand-100: #d6eadf;
+  --color-brand-200: #acd4be;
+  --color-brand-500: #2f8a5e;
+  --color-brand-600: #1e6b47;
+  --color-brand-700: #17573a;
+  --color-brand-800: #11412b;
+
+  --color-danger-50: #fdf1ef;
+  --color-danger-700: #a3352a;
+}
+
+@utility btn-primary {
+  @apply inline-flex min-h-11 items-center justify-center rounded-xl bg-brand-600 px-4 font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 active:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility btn-secondary {
+  @apply inline-flex min-h-11 items-center justify-center rounded-xl border border-line bg-surface px-4 font-semibold text-brand-700 transition-colors hover:border-brand-200 hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-surface;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-canvas text-ink font-sans antialiased;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-600;
+  }
+}
