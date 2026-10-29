@@ -1,6 +1,7 @@
 import { Link, Route, Routes } from 'react-router'
 import { EmptyState } from './components/StatusMessages'
 import { HomePage } from './pages/HomePage'
+import { IngredientsPage } from './pages/IngredientsPage'
 import { ProductPage } from './pages/ProductPage'
 
 export default function App() {
@@ -27,6 +28,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/product/:barcode" element={<ProductPage />} />
+          <Route path="/ingredients" element={<IngredientsPage />} />
           <Route
             path="*"
             element={
@@ -42,16 +44,8 @@ export default function App() {
 
       <footer className="border-t border-line py-6 text-center text-xs text-muted">
         <p className="mx-auto max-w-5xl px-4">
-          Product data from{' '}
-          <a
-            href="https://world.openfoodfacts.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline"
-          >
-            Open Food Facts
-          </a>{' '}
-          (ODbL). HalalCheck does not certify products as halal.
+          HalalCheck does not certify products as halal. Always check the packaging and
+          certification.
         </p>
       </footer>
     </div>

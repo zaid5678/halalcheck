@@ -1,0 +1,32 @@
+# Netlify configuration for the HalalCheck frontend.
+# Set VITE_API_BASE_URL in Netlify (Site configuration > Environment variables) to the Render
+# API URL, e.g. https://halalcheck-api.onrender.com, then redeploy.
+#
+# The API is called directly rather than through a Netlify proxy redirect: proxied requests time
+# out after about 26 seconds, which a cold-starting free Render instance plus OCR can exceed.
+
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Single-page app: let React Router handle every path.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Permissions-Policy = "camera=(self), microphone=(), geolocation=()"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Content-Type-Options = "nosniff"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

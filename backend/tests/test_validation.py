@@ -1,6 +1,5 @@
 import pytest
 
-from app.services.open_food_facts import is_halal_related
 from app.validation import InvalidInputError, normalise_barcode, normalise_query
 
 
@@ -29,19 +28,3 @@ def test_normalise_query_keeps_product_punctuation() -> None:
 
 def test_normalise_query_strips_control_characters() -> None:
     assert normalise_query("milk\x00\x1fchocolate") == "milkchocolate"
-
-
-@pytest.mark.parametrize(
-    ("label", "expected"),
-    [
-        ("Halal", True),
-        ("HALAL certified", True),
-        ("Contrôle de la mosquée de Lyon", True),
-        ("IFANCA", True),
-        ("Vegetarian", False),
-        ("No gluten", False),
-        ("Chameleon", False),
-    ],
-)
-def test_is_halal_related(label: str, expected: bool) -> None:
-    assert is_halal_related(label) is expected

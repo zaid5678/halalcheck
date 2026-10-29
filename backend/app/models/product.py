@@ -19,16 +19,18 @@ class Product(ProductSummary):
     categories: list[str] = Field(default_factory=list)
     countries: list[str] = Field(default_factory=list)
     labels: list[str] = Field(
-        default_factory=list, description="All labels exactly as recorded on Open Food Facts."
+        default_factory=list, description="All labels exactly as recorded by the data source."
     )
     halal_labels: list[str] = Field(
         default_factory=list,
         description=(
-            "Labels that mention halal or a halal certifier, as recorded by Open Food Facts "
-            "contributors. Empty means no information, not a negative result."
+            "Labels that mention halal or a halal certifier, as recorded by the data source. "
+            "Empty means no information, not a negative result."
         ),
     )
-    source_url: str = Field(description="Link to the product's Open Food Facts page.")
+    source_url: str | None = Field(
+        default=None, description="Link to the product's record at the data source."
+    )
 
 
 class SearchResponse(BaseModel):
@@ -40,13 +42,8 @@ class SearchResponse(BaseModel):
 
 
 class ErrorDetail(BaseModel):
-    code: str = Field(
-        description=(
-            "Machine-readable error code: invalid_request, not_found, upstream_timeout, "
-            "upstream_unavailable, upstream_rate_limited, upstream_invalid_response."
-        )
-    )
-    message: str
+    code: str = Field(description="Machine-readable error code, e.g. invalid_request.")
+    message: str = Field(description="Human-readable explanation, safe to show to users.")
 
 
 class ErrorResponse(BaseModel):
@@ -55,3 +52,4 @@ class ErrorResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str = "ok"
+    ocr_available: bool

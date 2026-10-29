@@ -175,7 +175,7 @@ describe('BarcodeScanner', () => {
     Reflect.deleteProperty(navigator, 'mediaDevices')
     renderScanner()
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Scanning isn’t supported in this browser')
+    expect(screen.getByRole('alert')).toHaveTextContent('Camera isn’t supported in this browser')
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
     expect(zxing.constructed).toBe(0)
   })

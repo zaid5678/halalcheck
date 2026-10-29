@@ -1,5 +1,6 @@
 import { useRequest } from '../hooks/useRequest'
-import { searchProducts } from '../services/products'
+import { Link } from 'react-router'
+import { PRODUCT_LOOKUP_UNAVAILABLE, searchProducts } from '../services/products'
 import { ProductCard } from './ProductCard'
 import { EmptyState, ErrorState, Spinner } from './StatusMessages'
 
@@ -18,6 +19,20 @@ export function SearchResults({ query, page, onPageChange }: SearchResultsProps)
 
   if (result.status === 'idle' || result.status === 'loading') {
     return <Spinner label="Searching products…" />
+  }
+
+  if (result.status === 'error' && result.error.code === PRODUCT_LOOKUP_UNAVAILABLE) {
+    return (
+      <EmptyState title="Product search is coming soon">
+        <p>
+          Searching by name isn’t available yet. In the meantime, you can photograph a product’s
+          ingredients list.
+        </p>
+        <Link to="/ingredients" className="btn-secondary mt-4">
+          Photograph ingredients
+        </Link>
+      </EmptyState>
+    )
   }
 
   if (result.status === 'error') {
