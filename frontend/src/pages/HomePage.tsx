@@ -15,8 +15,6 @@ export function HomePage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [scannerOpen, setScannerOpen] = useState(false)
   const [manualOpen, setManualOpen] = useState(false)
-  // Product lookup isn't connected yet, so a scan just shows the barcode it read.
-  const [scannedBarcode, setScannedBarcode] = useState<string | null>(null)
 
   const query = searchParams.get('q')?.trim() ?? ''
   const page = Math.max(1, Number.parseInt(searchParams.get('page') ?? '1', 10) || 1)
@@ -26,14 +24,13 @@ export function HomePage() {
     [navigate],
   )
   const closeScanner = useCallback(() => setScannerOpen(false), [])
-  const handleDetected = useCallback((barcode: string) => {
-    setScannerOpen(false)
-    setScannedBarcode(barcode)
-  }, [])
-  const startScan = () => {
-    setScannedBarcode(null)
-    setScannerOpen(true)
-  }
+  const handleDetected = useCallback(
+    (barcode: string) => {
+      setScannerOpen(false)
+      openProduct(barcode)
+    },
+    [openProduct],
+  )
   const switchToManualEntry = useCallback(() => {
     setScannerOpen(false)
     setManualOpen(true)
@@ -73,7 +70,7 @@ export function HomePage() {
           description="Look up a product using its barcode."
         >
           <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={startScan} className="btn-primary h-12 gap-1.5 px-3 whitespace-nowrap">
+            <button type="button" onClick={() => setScannerOpen(true)} className="btn-primary h-12 gap-1.5 px-3 whitespace-nowrap">
               <ScanIcon className="size-5" />
               Scan barcode
             </button>
@@ -87,20 +84,6 @@ export function HomePage() {
               <KeypadIcon className="size-5" />
               Enter barcode
             </button>
-          </div>
-          <div aria-live="polite">
-            {scannedBarcode && (
-              <div className="mt-4 rounded-xl bg-brand-50 p-4 text-center">
-                <p className="text-sm font-medium text-brand-800">Barcode detected</p>
-                <p className="mt-1 font-mono text-2xl font-semibold tracking-wider break-all text-ink">
-                  {scannedBarcode}
-                </p>
-                <button type="button" onClick={startScan} className="btn-secondary mt-3 gap-1.5">
-                  <ScanIcon className="size-5" />
-                  Scan again
-                </button>
-              </div>
-            )}
           </div>
           {manualOpen && (
             <div id="manual-entry" className="mt-4 border-t border-line pt-4">

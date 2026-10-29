@@ -124,3 +124,61 @@ describe('manual barcode entry', () => {
     expect(String(fetchMock.mock.calls[0][0])).toContain('/api/products/barcode/0012345678905')
   })
 })
+
+describe('halal check', () => {
+  it('shows the verdict and its reasons above the product details', async () => {
+    mockApi((url) =>
+      url.pathname.startsWith('/api/halal/')
+        ? {
+            body: {
+              verdict: 'haram',
+              reasons: [
+                { ingredient: 'gelatine', ruling: 'doubtful', note: 'Source not stated' },
+                { ingredient: 'pork fat', ruling: 'haram', note: 'Pork or pork-derived' },
+              ],
+              ingredients_text: 'sugar, pork fat, gelatine',
+              ai_checked: false,
+              product: null,
+            },
+          }
+        : { body: nutellaProduct },
+    )
+    renderApp('/product/0098008952506')
+
+    const check = await screen.findByRole('region', { name: 'Halal check' })
+    expect(within(check).getByRole('heading', { name: 'Haram' })).toBeInTheDocument()
+    expect(check).toHaveTextContent('1 haram ingredient found')
+    expect(check).toHaveTextContent('not a fatwa or certification')
+    // Haram reasons come first; a rules-only haram result isn't reported as an AI outage.
+    const names = within(check).getAllByRole('listitem').map((item) => item.querySelector('p')?.textContent)
+    expect(names).toEqual(['pork fat', 'gelatine'])
+    expect(check).not.toHaveTextContent('AI check unavailable')
+    expect(screen.getByRole('heading', { level: 1, name: 'Nutella' })).toBeInTheDocument()
+  })
+
+  it('asks for a photo instead of a verdict when ingredients are missing', async () => {
+    mockApi((url) =>
+      url.pathname.startsWith('/api/halal/')
+        ? {
+            body: {
+              verdict: 'doubtful',
+              reasons: [{ ingredient: 'Ingredients', ruling: 'doubtful', note: 'Ingredients are not available for this product' }],
+              ingredients_text: null,
+              ai_checked: false,
+              product: null,
+            },
+          }
+        : { body: nutellaProduct },
+    )
+    const { user } = renderApp('/product/0098008952506')
+
+    const prompt = await screen.findByRole('region', { name: 'Photo needed' })
+    expect(prompt).toHaveTextContent('We need a photo to check this')
+    expect(prompt).toHaveTextContent('We found Nutella')
+    expect(screen.queryByRole('region', { name: 'Halal check' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Doubtful')).not.toBeInTheDocument()
+
+    await user.click(within(prompt).getByRole('link', { name: 'Photograph the ingredients' }))
+    expect(await screen.findByRole('heading', { level: 1 })).not.toHaveTextContent('Nutella')
+  })
+})

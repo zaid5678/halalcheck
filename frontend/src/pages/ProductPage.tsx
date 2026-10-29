@@ -1,9 +1,11 @@
 import { Link, useNavigate, useParams } from 'react-router'
 import { ArrowLeftIcon, CameraIcon } from '../components/icons'
 import { ProductDetails } from '../components/ProductDetails'
+import { VerdictCard } from '../components/VerdictCard'
 import { EmptyState, ErrorState, Spinner } from '../components/StatusMessages'
 import { useRequest } from '../hooks/useRequest'
 import { validateBarcode } from '../lib/barcode'
+import { checkBarcode } from '../services/halal'
 import { getProductByBarcode, PRODUCT_LOOKUP_UNAVAILABLE } from '../services/products'
 
 export function ProductPage() {
@@ -13,6 +15,7 @@ export function ProductPage() {
   const barcode = validation.ok ? validation.barcode : null
 
   const result = useRequest(barcode, (signal) => getProductByBarcode(barcode!, signal))
+  const check = useRequest(barcode, (signal) => checkBarcode(barcode!, signal))
 
   function goBack() {
     // Return to the search results if we came from them; otherwise go home.
@@ -77,7 +80,39 @@ export function ProductPage() {
         />
       )}
 
-      {result.status === 'success' && <ProductDetails product={result.data} />}
+      {result.status === 'success' && (
+        <>
+          {check.status === 'loading' && <Spinner label="Checking ingredients…" />}
+          {check.status === 'error' && (
+            <ErrorState
+              title="Couldn’t check this product"
+              message={check.error.message}
+              onRetry={check.retry}
+            />
+          )}
+          {check.status === 'success' && check.data.ingredients_text && (
+            <VerdictCard result={check.data} />
+          )}
+          {check.status === 'success' && !check.data.ingredients_text && (
+            <section
+              aria-label="Photo needed"
+              className="rounded-2xl border border-line bg-surface p-5 text-center"
+            >
+              <CameraIcon className="mx-auto size-7 text-brand-600" />
+              <h2 className="mt-2 text-xl font-bold">We need a photo to check this</h2>
+              <p className="mt-1 text-muted">
+                We found {result.data.name ?? 'this product'}, but its ingredients aren’t in our
+                database.
+              </p>
+              <Link to="/ingredients" className="btn-primary mt-4 h-14 w-full gap-2 text-base">
+                <CameraIcon className="size-5" />
+                Photograph the ingredients
+              </Link>
+            </section>
+          )}
+          <ProductDetails product={result.data} />
+        </>
+      )}
     </div>
   )
 }
