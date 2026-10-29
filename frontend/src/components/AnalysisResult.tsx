@@ -252,28 +252,31 @@ export function AnalysisResult({ analysis }: { analysis: IngredientsAnalysis }) 
         </Panel>
       )}
 
-      <Panel title="Halal certification">
-        {analysis.certification_status.marks_visible.length > 0 ? (
-          <>
-            <p className="text-sm text-muted">Visible in the photo:</p>
-            <ul className="mt-2 flex flex-wrap gap-2">
-              {analysis.certification_status.marks_visible.map((mark) => (
-                <li key={mark} className="flex items-center gap-1.5 rounded-lg bg-brand-50 px-3 py-1 text-sm text-brand-800" dir="auto">
-                  <BadgeIcon className="size-4" />
-                  {mark}
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : (
-          <p className="text-sm font-medium">No halal certification visible</p>
-        )}
-        <p className="mt-2 text-sm text-muted">{analysis.certification_status.notes}</p>
-        <p className="mt-2 text-xs text-muted">
-          HalalCheck can’t confirm whether a logo is genuine or current. Check with the certifying
-          body.
-        </p>
-      </Panel>
+      {/* Certification is beside the point once a prohibited ingredient is established. */}
+      {analysis.overall_status !== 'haram' && (
+        <Panel title="Halal certification">
+          {analysis.certification_status.marks_visible.length > 0 ? (
+            <>
+              <p className="text-sm text-muted">Visible in the photo:</p>
+              <ul className="mt-2 flex flex-wrap gap-2">
+                {analysis.certification_status.marks_visible.map((mark) => (
+                  <li key={mark} className="flex items-center gap-1.5 rounded-lg bg-brand-50 px-3 py-1 text-sm text-brand-800" dir="auto">
+                    <BadgeIcon className="size-4" />
+                    {mark}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="text-sm font-medium">No halal certification visible</p>
+          )}
+          <p className="mt-2 text-sm text-muted">{analysis.certification_status.notes}</p>
+          <p className="mt-2 text-xs text-muted">
+            HalalCheck can’t confirm whether a logo is genuine or current. Check with the certifying
+            body.
+          </p>
+        </Panel>
+      )}
 
       {analysis.recommended_next_steps.length > 0 && (
         <Panel title="What you can do next">

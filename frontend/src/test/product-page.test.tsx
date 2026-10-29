@@ -213,6 +213,27 @@ describe('halal check', () => {
     expect(why).toHaveTextContent('Gelatine alone does not establish a pig source.')
   })
 
+  it('hides the halal certification section when the product is haram', async () => {
+    mockApi((url) =>
+      url.pathname.startsWith('/api/halal/')
+        ? {
+            body: {
+              verdict: 'haram',
+              reasons: [{ ingredient: 'pork fat', ruling: 'haram', note: 'Pork or pork-derived' }],
+              ingredients_text: 'flour, pork fat',
+              ai_checked: false,
+              product: null,
+            },
+          }
+        : { body: nutellaProduct },
+    )
+    renderApp('/product/0098008952506')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Nutella' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Halal certification' })).not.toBeInTheDocument()
+    expect(screen.queryByText('No halal certification information available')).not.toBeInTheDocument()
+  })
+
   it('asks for a photo instead of a verdict when ingredients are missing', async () => {
     mockApi((url) =>
       url.pathname.startsWith('/api/halal/')

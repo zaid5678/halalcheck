@@ -3,7 +3,13 @@ import type { Product } from '../types/product'
 import { BadgeIcon, ExternalLinkIcon, InfoIcon } from './icons'
 import { ProductImage } from './ProductImage'
 
-export function ProductDetails({ product }: { product: Product }) {
+interface ProductDetailsProps {
+  product: Product
+  /** Hide the certification section, e.g. when the product has been assessed as haram. */
+  showCertification?: boolean
+}
+
+export function ProductDetails({ product, showCertification = true }: ProductDetailsProps) {
   const name = product.name ?? 'Unnamed product'
 
   return (
@@ -28,7 +34,7 @@ export function ProductDetails({ product }: { product: Product }) {
         </div>
       </header>
 
-      <HalalCertification labels={product.halal_labels} />
+      {showCertification && <HalalCertification labels={product.halal_labels} />}
 
       <Section title="Ingredients">
         {product.ingredients_text ? (

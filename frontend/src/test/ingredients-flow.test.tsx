@@ -293,6 +293,8 @@ describe('scan ingredients', () => {
     expect(within(why).getAllByText('Verified reference')).toHaveLength(2)
     // Scholarly qualifications.
     expect(why).toHaveTextContent('istihalah')
+    // Certification isn't shown next to a haram result.
+    expect(screen.queryByRole('heading', { name: 'Halal certification' })).not.toBeInTheDocument()
   })
 
   it('does not call unknown-source gelatine haram, and says what would resolve it', async () => {
@@ -309,6 +311,7 @@ describe('scan ingredients', () => {
     expect(checking).toHaveTextContent('To resolve: Which animal is the gelatine from?')
     expect(screen.getByText(/do not show that this product contains a prohibited/)).toBeInTheDocument()
     expect(screen.getByText(/HalalCheck knowledge base: “gelatine”/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Halal certification' })).toBeInTheDocument()
   })
 
   it('lets users correct the ingredients after the result and re-run', async () => {

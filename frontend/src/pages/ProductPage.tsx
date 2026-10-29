@@ -110,7 +110,11 @@ export function ProductPage() {
               </Link>
             </section>
           )}
-          <ProductDetails product={result.data} />
+          <ProductDetails
+            product={result.data}
+            // "No certification information" is misleading next to a haram verdict.
+            showCertification={!(check.status === 'success' && check.data.verdict === 'haram')}
+          />
         </>
       )}
     </div>
