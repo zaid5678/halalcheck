@@ -7,9 +7,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import products
+from app.api import halal, products
 from app.config import get_settings
 from app.models.product import HealthResponse
+from app.services.llm import LLMError
 from app.services.open_food_facts import OpenFoodFactsError, build_http_client
 from app.validation import InvalidInputError
 
@@ -35,7 +36,7 @@ app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -63,9 +64,15 @@ async def upstream_error_handler(_: Request, exc: OpenFoodFactsError) -> JSONRes
     return _error(exc.status_code, exc.code, exc.message)
 
 
+@app.exception_handler(LLMError)
+async def llm_error_handler(_: Request, exc: LLMError) -> JSONResponse:
+    return _error(exc.status_code, exc.code, exc.message)
+
+
 @app.get("/api/health", response_model=HealthResponse, tags=["health"])
 async def health() -> HealthResponse:
     return HealthResponse()
 
 
 app.include_router(products.router)
+app.include_router(halal.router)
