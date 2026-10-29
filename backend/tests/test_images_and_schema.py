@@ -97,11 +97,25 @@ def test_label_schema_is_strict_compatible() -> None:
         assert set(node["required"]) == set(node["properties"])
 
 
-def test_label_schema_lists_the_three_overall_statuses() -> None:
+def test_label_schema_lists_the_overall_statuses() -> None:
     assert LABEL_SCHEMA["properties"]["overall_status"]["enum"] == [
-        "likely_halal",
+        "haram",
         "potentially_non_halal",
         "needs_further_investigation",
+        "likely_halal",
     ]
     finding = LABEL_SCHEMA["properties"]["ingredients"]["items"]["properties"]
     assert finding["assessment"]["enum"] == ["likely_permissible", "potential_concern", "unknown"]
+
+
+def test_concern_principles_are_limited_to_the_library() -> None:
+    concern = LABEL_SCHEMA["properties"]["identified_concerns"]["items"]["properties"]
+    assert concern["principle_id"]["enum"] == [
+        "swine",
+        "carrion",
+        "blood",
+        "intoxicants",
+        "dedicated_to_other_than_allah",
+        "insects",
+        "doubtful_matters",
+    ]

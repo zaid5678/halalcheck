@@ -1,0 +1,355 @@
+{
+  "about": "Curated Islamic evidence used by HalalCheck. Qur'an text and Saheeh International translation retrieved from AlQuran Cloud (Tanzil Uthmani text) and linked to Quran.com; hadith text, numbering and grading retrieved from Sunnah.com on 2026-10-29. The AI may only reference these entries by id.",
+  "retrieved": "2026-10-29",
+  "evidence": [
+    {
+      "id": "quran-2-173",
+      "source_type": "quran",
+      "reference": "Qur'an 2:173",
+      "title": "Surah Al-Baqara (2), verse 173",
+      "arabic_text": "إِنَّمَا حَرَّمَ عَلَيْكُمُ ٱلْمَيْتَةَ وَٱلدَّمَ وَلَحْمَ ٱلْخِنزِيرِ وَمَآ أُهِلَّ بِهِۦ لِغَيْرِ ٱللَّهِ ۖ فَمَنِ ٱضْطُرَّ غَيْرَ بَاغٍۢ وَلَا عَادٍۢ فَلَآ إِثْمَ عَلَيْهِ ۚ إِنَّ ٱللَّهَ غَفُورٌۭ رَّحِيمٌ",
+      "translation": "He has only forbidden to you dead animals, blood, the flesh of swine, and that which has been dedicated to other than Allah. But whoever is forced [by necessity], neither desiring [it] nor transgressing [its limit], there is no sin upon him. Indeed, Allah is Forgiving and Merciful.",
+      "translation_source": "Saheeh International",
+      "text_source": "Uthmani text (Tanzil) via AlQuran Cloud",
+      "authenticity": null,
+      "url": "https://quran.com/2/173",
+      "excerpt": false
+    },
+    {
+      "id": "quran-5-3",
+      "source_type": "quran",
+      "reference": "Qur'an 5:3",
+      "title": "Surah Al-Maaida (5), verse 3",
+      "arabic_text": "حُرِّمَتْ عَلَيْكُمُ ٱلْمَيْتَةُ وَٱلدَّمُ وَلَحْمُ ٱلْخِنزِيرِ وَمَآ أُهِلَّ لِغَيْرِ ٱللَّهِ بِهِۦ وَٱلْمُنْخَنِقَةُ وَٱلْمَوْقُوذَةُ وَٱلْمُتَرَدِّيَةُ وَٱلنَّطِيحَةُ وَمَآ أَكَلَ ٱلسَّبُعُ إِلَّا مَا ذَكَّيْتُمْ وَمَا ذُبِحَ عَلَى ٱلنُّصُبِ وَأَن تَسْتَقْسِمُوا۟ بِٱلْأَزْلَٰمِ ۚ ذَٰلِكُمْ فِسْقٌ ۗ ٱلْيَوْمَ يَئِسَ ٱلَّذِينَ كَفَرُوا۟ مِن دِينِكُمْ فَلَا تَخْشَوْهُمْ وَٱخْشَوْنِ ۚ ٱلْيَوْمَ أَكْمَلْتُ لَكُمْ دِينَكُمْ وَأَتْمَمْتُ عَلَيْكُمْ نِعْمَتِى وَرَضِيتُ لَكُمُ ٱلْإِسْلَٰمَ دِينًۭا ۚ فَمَنِ ٱضْطُرَّ فِى مَخْمَصَةٍ غَيْرَ مُتَجَانِفٍۢ لِّإِثْمٍۢ ۙ فَإِنَّ ٱللَّهَ غَفُورٌۭ رَّحِيمٌۭ",
+      "translation": "Prohibited to you are dead animals, blood, the flesh of swine, and that which has been dedicated to other than Allah, and [those animals] killed by strangling or by a violent blow or by a head-long fall or by the goring of horns, and those from which a wild animal has eaten, except what you [are able to] slaughter [before its death], and those which are sacrificed on stone altars, and [prohibited is] that you seek decision through divining arrows. That is grave disobedience. This day those who disbelieve have despaired of [defeating] your religion; so fear them not, but fear Me. This day I have perfected for you your religion and completed My favor upon you and have approved for you Islam as religion. But whoever is forced by severe hunger with no inclination to sin - then indeed, Allah is Forgiving and Merciful.",
+      "translation_source": "Saheeh International",
+      "text_source": "Uthmani text (Tanzil) via AlQuran Cloud",
+      "authenticity": null,
+      "url": "https://quran.com/5/3",
+      "excerpt": false
+    },
+    {
+      "id": "quran-6-145",
+      "source_type": "quran",
+      "reference": "Qur'an 6:145",
+      "title": "Surah Al-An'aam (6), verse 145",
+      "arabic_text": "قُل لَّآ أَجِدُ فِى مَآ أُوحِىَ إِلَىَّ مُحَرَّمًا عَلَىٰ طَاعِمٍۢ يَطْعَمُهُۥٓ إِلَّآ أَن يَكُونَ مَيْتَةً أَوْ دَمًۭا مَّسْفُوحًا أَوْ لَحْمَ خِنزِيرٍۢ فَإِنَّهُۥ رِجْسٌ أَوْ فِسْقًا أُهِلَّ لِغَيْرِ ٱللَّهِ بِهِۦ ۚ فَمَنِ ٱضْطُرَّ غَيْرَ بَاغٍۢ وَلَا عَادٍۢ فَإِنَّ رَبَّكَ غَفُورٌۭ رَّحِيمٌۭ",
+      "translation": "Say, \"I do not find within that which was revealed to me [anything] forbidden to one who would eat it unless it be a dead animal or blood spilled out or the flesh of swine - for indeed, it is impure - or it be [that slaughtered in] disobedience, dedicated to other than Allah. But whoever is forced [by necessity], neither desiring [it] nor transgressing [its limit], then indeed, your Lord is Forgiving and Merciful.\"",
+      "translation_source": "Saheeh International",
+      "text_source": "Uthmani text (Tanzil) via AlQuran Cloud",
+      "authenticity": null,
+      "url": "https://quran.com/6/145",
+      "excerpt": false
+    },
+    {
+      "id": "quran-16-115",
+      "source_type": "quran",
+      "reference": "Qur'an 16:115",
+      "title": "Surah An-Nahl (16), verse 115",
+      "arabic_text": "إِنَّمَا حَرَّمَ عَلَيْكُمُ ٱلْمَيْتَةَ وَٱلدَّمَ وَلَحْمَ ٱلْخِنزِيرِ وَمَآ أُهِلَّ لِغَيْرِ ٱللَّهِ بِهِۦ ۖ فَمَنِ ٱضْطُرَّ غَيْرَ بَاغٍۢ وَلَا عَادٍۢ فَإِنَّ ٱللَّهَ غَفُورٌۭ رَّحِيمٌۭ",
+      "translation": "He has only forbidden to you dead animals, blood, the flesh of swine, and that which has been dedicated to other than Allah. But whoever is forced [by necessity], neither desiring [it] nor transgressing [its limit] - then indeed, Allah is Forgiving and Merciful.",
+      "translation_source": "Saheeh International",
+      "text_source": "Uthmani text (Tanzil) via AlQuran Cloud",
+      "authenticity": null,
+      "url": "https://quran.com/16/115",
+      "excerpt": false
+    },
+    {
+      "id": "quran-5-90",
+      "source_type": "quran",
+      "reference": "Qur'an 5:90",
+      "title": "Surah Al-Maaida (5), verse 90",
+      "arabic_text": "يَٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُوٓا۟ إِنَّمَا ٱلْخَمْرُ وَٱلْمَيْسِرُ وَٱلْأَنصَابُ وَٱلْأَزْلَٰمُ رِجْسٌۭ مِّنْ عَمَلِ ٱلشَّيْطَٰنِ فَٱجْتَنِبُوهُ لَعَلَّكُمْ تُفْلِحُونَ",
+      "translation": "O you who have believed, indeed, intoxicants, gambling, [sacrificing on] stone alters [to other than Allah], and divining arrows are but defilement from the work of Satan, so avoid it that you may be successful.",
+      "translation_source": "Saheeh International",
+      "text_source": "Uthmani text (Tanzil) via AlQuran Cloud",
+      "authenticity": null,
+      "url": "https://quran.com/5/90",
+      "excerpt": false
+    },
+    {
+      "id": "quran-6-121",
+      "source_type": "quran",
+      "reference": "Qur'an 6:121",
+      "title": "Surah Al-An'aam (6), verse 121",
+      "arabic_text": "وَلَا تَأْكُلُوا۟ مِمَّا لَمْ يُذْكَرِ ٱسْمُ ٱللَّهِ عَلَيْهِ وَإِنَّهُۥ لَفِسْقٌۭ ۗ وَإِنَّ ٱلشَّيَٰطِينَ لَيُوحُونَ إِلَىٰٓ أَوْلِيَآئِهِمْ لِيُجَٰدِلُوكُمْ ۖ وَإِنْ أَطَعْتُمُوهُمْ إِنَّكُمْ لَمُشْرِكُونَ",
+      "translation": "And do not eat of that upon which the name of Allah has not been mentioned, for indeed, it is grave disobedience. And indeed do the devils inspire their allies [among men] to dispute with you. And if you were to obey them, indeed, you would be associators [of others with Him].",
+      "translation_source": "Saheeh International",
+      "text_source": "Uthmani text (Tanzil) via AlQuran Cloud",
+      "authenticity": null,
+      "url": "https://quran.com/6/121",
+      "excerpt": false
+    },
+    {
+      "id": "quran-5-5",
+      "source_type": "quran",
+      "reference": "Qur'an 5:5",
+      "title": "Surah Al-Maaida (5), verse 5",
+      "arabic_text": "ٱلْيَوْمَ أُحِلَّ لَكُمُ ٱلطَّيِّبَٰتُ ۖ وَطَعَامُ ٱلَّذِينَ أُوتُوا۟ ٱلْكِتَٰبَ حِلٌّۭ لَّكُمْ وَطَعَامُكُمْ حِلٌّۭ لَّهُمْ ۖ وَٱلْمُحْصَنَٰتُ مِنَ ٱلْمُؤْمِنَٰتِ وَٱلْمُحْصَنَٰتُ مِنَ ٱلَّذِينَ أُوتُوا۟ ٱلْكِتَٰبَ مِن قَبْلِكُمْ إِذَآ ءَاتَيْتُمُوهُنَّ أُجُورَهُنَّ مُحْصِنِينَ غَيْرَ مُسَٰفِحِينَ وَلَا مُتَّخِذِىٓ أَخْدَانٍۢ ۗ وَمَن يَكْفُرْ بِٱلْإِيمَٰنِ فَقَدْ حَبِطَ عَمَلُهُۥ وَهُوَ فِى ٱلْءَاخِرَةِ مِنَ ٱلْخَٰسِرِينَ",
+      "translation": "This day [all] good foods have been made lawful, and the food of those who were given the Scripture is lawful for you and your food is lawful for them. And [lawful in marriage are] chaste women from among the believers and chaste women from among those who were given the Scripture before you, when you have given them their due compensation, desiring chastity, not unlawful sexual intercourse or taking [secret] lovers. And whoever denies the faith - his work has become worthless, and he, in the Hereafter, will be among the losers.",
+      "translation_source": "Saheeh International",
+      "text_source": "Uthmani text (Tanzil) via AlQuran Cloud",
+      "authenticity": null,
+      "url": "https://quran.com/5/5",
+      "excerpt": false
+    },
+    {
+      "id": "quran-7-157",
+      "source_type": "quran",
+      "reference": "Qur'an 7:157",
+      "title": "Surah Al-A'raaf (7), verse 157",
+      "arabic_text": "ٱلَّذِينَ يَتَّبِعُونَ ٱلرَّسُولَ ٱلنَّبِىَّ ٱلْأُمِّىَّ ٱلَّذِى يَجِدُونَهُۥ مَكْتُوبًا عِندَهُمْ فِى ٱلتَّوْرَىٰةِ وَٱلْإِنجِيلِ يَأْمُرُهُم بِٱلْمَعْرُوفِ وَيَنْهَىٰهُمْ عَنِ ٱلْمُنكَرِ وَيُحِلُّ لَهُمُ ٱلطَّيِّبَٰتِ وَيُحَرِّمُ عَلَيْهِمُ ٱلْخَبَٰٓئِثَ وَيَضَعُ عَنْهُمْ إِصْرَهُمْ وَٱلْأَغْلَٰلَ ٱلَّتِى كَانَتْ عَلَيْهِمْ ۚ فَٱلَّذِينَ ءَامَنُوا۟ بِهِۦ وَعَزَّرُوهُ وَنَصَرُوهُ وَٱتَّبَعُوا۟ ٱلنُّورَ ٱلَّذِىٓ أُنزِلَ مَعَهُۥٓ ۙ أُو۟لَٰٓئِكَ هُمُ ٱلْمُفْلِحُونَ",
+      "translation": "Those who follow the Messenger, the unlettered prophet, whom they find written in what they have of the Torah and the Gospel, who enjoins upon them what is right and forbids them what is wrong and makes lawful for them the good things and prohibits for them the evil and relieves them of their burden and the shackles which were upon them. So they who have believed in him, honored him, supported him and followed the light which was sent down with him - it is those who will be the successful.",
+      "translation_source": "Saheeh International",
+      "text_source": "Uthmani text (Tanzil) via AlQuran Cloud",
+      "authenticity": null,
+      "url": "https://quran.com/7/157",
+      "excerpt": false
+    },
+    {
+      "id": "hadith-bukhari-52",
+      "source_type": "hadith",
+      "reference": "Sahih al-Bukhari 52",
+      "title": "Sahih al-Bukhari 52",
+      "narrator": "Narrated An-Nu'man bin Bashir",
+      "arabic_text": "الْحَلاَلُ بَيِّنٌ وَالْحَرَامُ بَيِّنٌ، وَبَيْنَهُمَا مُشَبَّهَاتٌ لاَ يَعْلَمُهَا كَثِيرٌ مِنَ النَّاسِ، فَمَنِ اتَّقَى الْمُشَبَّهَاتِ اسْتَبْرَأَ لِدِيِنِهِ وَعِرْضِهِ، وَمَنْ وَقَعَ فِي الشُّبُهَاتِ كَرَاعٍ يَرْعَى حَوْلَ الْحِمَى، يُوشِكُ أَنْ يُوَاقِعَهُ. أَلاَ وَإِنَّ لِكُلِّ مَلِكٍ حِمًى، أَلاَ إِنَّ حِمَى اللَّهِ فِي أَرْضِهِ مَحَارِمُهُ، أَلاَ وَإِنَّ فِي الْجَسَدِ مُضْغَةً إِذَا صَلَحَتْ صَلَحَ الْجَسَدُ كُلُّهُ، وَإِذَا فَسَدَتْ فَسَدَ الْجَسَدُ كُلُّهُ. أَلاَ وَهِيَ الْقَلْبُ",
+      "translation": "I heard Allah's Messenger (ﷺ) saying, 'Both legal and illegal things are evident but in between them there are doubtful (suspicious) things and most of the people have no knowledge about them. So whoever saves himself from these suspicious things saves his religion and his honor. And whoever indulges in these suspicious things is like a shepherd who grazes (his animals) near the Hima (private pasture) of someone else and at any moment he is liable to get in it. (O people!) Beware! Every king has a Hima and the Hima of Allah on the earth is His illegal (forbidden) things. Beware! There is a piece of flesh in the body if it becomes good (reformed) the whole body becomes good but if it gets spoilt the whole body gets spoilt and that is the heart.",
+      "translation_source": "Sunnah.com (M. Muhsin Khan)",
+      "text_source": "Sunnah.com",
+      "authenticity": {
+        "grade": "Sahih",
+        "graded_by": "Included in Sahih al-Bukhari, whose narrations Sunni scholarship accepts as authentic"
+      },
+      "url": "https://sunnah.com/bukhari:52",
+      "excerpt": false
+    },
+    {
+      "id": "hadith-muslim-1599a",
+      "source_type": "hadith",
+      "reference": "Sahih Muslim 1599a",
+      "title": "Sahih Muslim 1599 a",
+      "narrator": "Nu'man b. Bashir (Allah be pleased with him) reported",
+      "arabic_text": "إِنَّ الْحَلاَلَ بَيِّنٌ وَإِنَّ الْحَرَامَ بَيِّنٌ وَبَيْنَهُمَا مُشْتَبِهَاتٌ لاَ يَعْلَمُهُنَّ كَثِيرٌ مِنَ النَّاسِ فَمَنِ اتَّقَى الشُّبُهَاتِ اسْتَبْرَأَ لِدِينِهِ وَعِرْضِهِ وَمَنْ وَقَعَ فِي الشُّبُهَاتِ وَقَعَ فِي الْحَرَامِ كَالرَّاعِي يَرْعَى حَوْلَ الْحِمَى يُوشِكُ أَنْ يَرْتَعَ فِيهِ أَلاَ وَإِنَّ لِكُلِّ مَلِكٍ حِمًى أَلاَ وَإِنَّ حِمَى اللَّهِ مَحَارِمُهُ أَلاَ وَإِنَّ فِي الْجَسَدِ مُضْغَةً إِذَا صَلَحَتْ صَلَحَ الْجَسَدُ كُلُّهُ وَإِذَا فَسَدَتْ فَسَدَ الْجَسَدُ كُلُّهُ أَلاَ وَهِيَ الْقَلْبُ",
+      "translation": "I heard Allah's Messenger (may peace be upon himn) as having said this (and Nu'man) pointed towards his ears with his fingers): What is lawful is evident and what is unlawful is evident, and in between them are the things doubtful which many people do not know. So he who guards against doubtful things keeps his religion and honour blameless, and he who indulges in doubtful things indulges in fact in unlawful things, just as a shepherd who pastures his animals round a preserve will soon pasture them in it. Beware, every king has a preserve, and the things God his declaced unlawful are His preserves. Beware, in the body there is a piece of flesh; if it is sound, the whole body is sound and if it is corrupt the whole body is corrupt, and hearken it is the heart.",
+      "translation_source": "Sunnah.com (Abdul Hamid Siddiqui)",
+      "text_source": "Sunnah.com",
+      "authenticity": {
+        "grade": "Sahih",
+        "graded_by": "Included in Sahih Muslim, whose narrations Sunni scholarship accepts as authentic"
+      },
+      "url": "https://sunnah.com/muslim:1599a",
+      "excerpt": false
+    },
+    {
+      "id": "hadith-muslim-2003a",
+      "source_type": "hadith",
+      "reference": "Sahih Muslim 2003a",
+      "title": "Sahih Muslim 2003 a",
+      "narrator": "Ibn 'Umar reported Allah's Messenger (ﷺ) as saying",
+      "arabic_text": "كُلُّ مُسْكِرٍ خَمْرٌ وَكُلُّ مُسْكِرٍ حَرَامٌ وَمَنْ شَرِبَ الْخَمْرَ فِي الدُّنْيَا فَمَاتَ وَهُوَ يُدْمِنُهَا لَمْ يَتُبْ لَمْ يَشْرَبْهَا فِي الآخِرَةِ",
+      "translation": "Every intoxicant is Khamr and every intoxicant is forbidden. He who drinks wine in this world and dies while he is addicted to it, not having repented, will not be given a drink in the Hereafter.",
+      "translation_source": "Sunnah.com (Abdul Hamid Siddiqui)",
+      "text_source": "Sunnah.com",
+      "authenticity": {
+        "grade": "Sahih",
+        "graded_by": "Included in Sahih Muslim, whose narrations Sunni scholarship accepts as authentic"
+      },
+      "url": "https://sunnah.com/muslim:2003a",
+      "excerpt": false
+    },
+    {
+      "id": "hadith-bukhari-5585",
+      "source_type": "hadith",
+      "reference": "Sahih al-Bukhari 5585",
+      "title": "Sahih al-Bukhari 5585",
+      "narrator": "Narrated `Aisha",
+      "arabic_text": "كُلُّ شَرَابٍ أَسْكَرَ فَهْوَ حَرَامٌ",
+      "translation": "Allah's Messenger (ﷺ) was asked about Al-Bit. He said, \"All drinks that intoxicate are unlawful (to drink.)",
+      "translation_source": "Sunnah.com (M. Muhsin Khan)",
+      "text_source": "Sunnah.com",
+      "authenticity": {
+        "grade": "Sahih",
+        "graded_by": "Included in Sahih al-Bukhari, whose narrations Sunni scholarship accepts as authentic"
+      },
+      "url": "https://sunnah.com/bukhari:5585",
+      "excerpt": false
+    },
+    {
+      "id": "hadith-bukhari-2236",
+      "source_type": "hadith",
+      "reference": "Sahih al-Bukhari 2236",
+      "title": "Sahih al-Bukhari 2236",
+      "narrator": "Narrated Jabir bin `Abdullah",
+      "arabic_text": "إِنَّ اللَّهَ وَرَسُولَهُ حَرَّمَ بَيْعَ الْخَمْرِ وَالْمَيْتَةِ وَالْخِنْزِيرِ وَالأَصْنَامِ",
+      "translation": "Allah and His Apostle made illegal the trade of alcohol, dead animals, pigs and idols.",
+      "translation_source": "Sunnah.com (M. Muhsin Khan)",
+      "text_source": "Sunnah.com",
+      "authenticity": {
+        "grade": "Sahih",
+        "graded_by": "Included in Sahih al-Bukhari, whose narrations Sunni scholarship accepts as authentic"
+      },
+      "url": "https://sunnah.com/bukhari:2236",
+      "excerpt": true
+    },
+    {
+      "id": "hadith-ibnmajah-3314",
+      "source_type": "hadith",
+      "reference": "Sunan Ibn Majah 3314",
+      "title": "Sunan Ibn Majah 3314",
+      "narrator": "It was narrated from ‘Abdullah bin ‘Umar that the Messenger of Allah (ﷺ) said",
+      "arabic_text": "أُحِلَّتْ لَنَا مَيْتَتَانِ وَدَمَانِ فَأَمَّا الْمَيْتَتَانِ فَالْحُوتُ وَالْجَرَادُ وَأَمَّا الدَّمَانِ فَالْكَبِدُ وَالطِّحَالُ",
+      "translation": "“Two kinds of dead meat and two kinds of blood have been permitted to us. The two kinds of dead meat are fish and locusts, and the two kinds of blood are the liver and spleen.”",
+      "translation_source": "Sunnah.com",
+      "text_source": "Sunnah.com",
+      "authenticity": {
+        "grade": "Sahih",
+        "graded_by": "Darussalam, as shown on Sunnah.com"
+      },
+      "url": "https://sunnah.com/ibnmajah:3314",
+      "excerpt": false
+    },
+    {
+      "id": "hadith-abudawud-3681",
+      "source_type": "hadith",
+      "reference": "Sunan Abi Dawud 3681",
+      "title": "Sunan Abi Dawud 3681",
+      "narrator": "Narrated Jabir ibn Abdullah",
+      "arabic_text": "مَا أَسْكَرَ كَثِيرُهُ فَقَلِيلُهُ حَرَامٌ",
+      "translation": "The Prophet (ﷺ) said: If a large amount of anything causes intoxication, a small amount of it is prohibited.",
+      "translation_source": "Sunnah.com",
+      "text_source": "Sunnah.com",
+      "authenticity": {
+        "grade": "Hasan Sahih",
+        "graded_by": "Al-Albani, as shown on Sunnah.com"
+      },
+      "url": "https://sunnah.com/abudawud:3681",
+      "excerpt": false
+    }
+  ],
+  "principles": [
+    {
+      "id": "swine",
+      "category": "prohibited",
+      "title": "Pork and pig-derived ingredients",
+      "principle": "The Qur'an explicitly prohibits the flesh of swine, and Qur'an 6:145 describes it as impure. Muslim scholars apply this prohibition to all edible parts and derivatives of the pig, such as lard, pork fat and pork gelatine.",
+      "evidence_ids": [
+        "quran-2-173",
+        "quran-5-3",
+        "quran-6-145",
+        "hadith-bukhari-2236"
+      ],
+      "evidence_notes": {
+        "hadith-bukhari-2236": "This narration concerns trading in pigs, dead animals and alcohol. It supports their prohibited status but does not mention modern food additives."
+      },
+      "qualifications": [
+        "The prohibition applies to ingredients that actually come from pigs. Gelatine, E471, glycerine and similar ingredients can be made from pigs or from other sources, so their name alone does not establish a pig source.",
+        "Scholars differ on whether complete chemical transformation (istihalah) changes the ruling of a substance that came from a prohibited source. Many halal certification bodies do not accept pig-derived gelatine on this basis.",
+        "Qur'an 2:173 exempts a person forced by genuine necessity, without desire or transgression."
+      ]
+    },
+    {
+      "id": "carrion",
+      "category": "prohibited",
+      "title": "Dead animals and meat not slaughtered Islamically",
+      "principle": "The Qur'an prohibits dead animals (maytah), including those killed by strangling, a blow, a fall or goring, except what is properly slaughtered. Scholars apply this to meat and animal-derived ingredients from land animals that were not slaughtered in an Islamically valid way.",
+      "evidence_ids": [
+        "quran-2-173",
+        "quran-5-3",
+        "quran-6-121",
+        "quran-5-5",
+        "hadith-ibnmajah-3314"
+      ],
+      "evidence_notes": {
+        "quran-5-5": "Permits the food of the People of the Book; scholars differ on how this applies to modern commercially slaughtered meat.",
+        "hadith-ibnmajah-3314": "Establishes that fish and locusts are permitted even without slaughter."
+      },
+      "qualifications": [
+        "Scholars differ on meat slaughtered by Jews and Christians (Qur'an 5:5), on the conditions of slaughter including pronouncing Allah's name (Qur'an 6:121), and on stunning.",
+        "Ingredients from cattle or poultry are only affected by this principle if the animal was not slaughtered Islamically, which a label rarely states. That is usually a question for the manufacturer or a halal certifier.",
+        "Fish and other seafood are not covered by this prohibition according to the majority of scholars (Ibn Majah 3314); the Hanafi school restricts seafood to fish."
+      ]
+    },
+    {
+      "id": "blood",
+      "category": "prohibited",
+      "title": "Blood",
+      "principle": "The Qur'an prohibits blood, and Qur'an 6:145 specifies blood that is poured out (dam masfuh). Foods made from blood, such as black pudding or blood plasma, fall under this prohibition.",
+      "evidence_ids": [
+        "quran-2-173",
+        "quran-6-145",
+        "hadith-ibnmajah-3314"
+      ],
+      "evidence_notes": {
+        "hadith-ibnmajah-3314": "Names liver and spleen as permitted, distinguishing them from prohibited blood."
+      },
+      "qualifications": [
+        "Scholars generally do not apply the prohibition to the small amount of blood that remains in meat after proper slaughter."
+      ]
+    },
+    {
+      "id": "intoxicants",
+      "category": "prohibited",
+      "title": "Intoxicants (khamr), including alcoholic drinks",
+      "principle": "The Qur'an commands believers to avoid intoxicants, and authentic hadith state that every intoxicant is khamr and prohibited, and that what intoxicates in large amounts is prohibited in small amounts. Alcoholic drinks such as wine, beer or spirits used as an ingredient fall under this prohibition.",
+      "evidence_ids": [
+        "quran-5-90",
+        "hadith-muslim-2003a",
+        "hadith-bukhari-5585",
+        "hadith-abudawud-3681"
+      ],
+      "evidence_notes": {},
+      "qualifications": [
+        "Scholars differ on small amounts of ethanol used as a solvent or carrier in flavourings, on alcohol that is not from wine or other intoxicating drinks, and on alcohol that evaporates or is transformed during cooking.",
+        "Vinegar, including wine vinegar, is generally considered permissible."
+      ]
+    },
+    {
+      "id": "dedicated_to_other_than_allah",
+      "category": "prohibited",
+      "title": "Animals dedicated to other than Allah",
+      "principle": "The Qur'an prohibits meat that has been dedicated or sacrificed to other than Allah.",
+      "evidence_ids": [
+        "quran-2-173",
+        "quran-5-3",
+        "quran-16-115"
+      ],
+      "evidence_notes": {},
+      "qualifications": [
+        "Food labels almost never indicate this. It is relevant only when the packaging states it."
+      ]
+    },
+    {
+      "id": "insects",
+      "category": "disputed",
+      "title": "Insect-derived ingredients (e.g. carmine, shellac)",
+      "principle": "No verse or authentic hadith names carmine, cochineal or shellac. Scholars reason from the general principle that impure things (al-khaba'ith) are prohibited and from the narration permitting locusts, and reach different conclusions about other insects.",
+      "evidence_ids": [
+        "quran-7-157",
+        "hadith-ibnmajah-3314"
+      ],
+      "evidence_notes": {
+        "quran-7-157": "States the general principle that the Prophet prohibits impure things; it does not name insects.",
+        "hadith-ibnmajah-3314": "Permits locusts specifically."
+      },
+      "qualifications": [
+        "The Hanafi, Shafi'i and Hanbali schools generally do not permit eating insects other than locusts, while the Maliki school is more permissive.",
+        "Contemporary scholars and halal certifiers differ on carmine (E120) and shellac (E904): some reject them, others permit them, for example because of the small amount used or because they are not consumed as food in themselves.",
+        "Because this is disputed, HalalCheck does not classify a product as haram on this basis alone."
+      ]
+    },
+    {
+      "id": "doubtful_matters",
+      "category": "caution",
+      "title": "Doubtful matters (shubuhat)",
+      "principle": "The Prophet taught that what is lawful and what is unlawful are clear, and between them are doubtful matters; avoiding them protects one's religion. This guides caution with ingredients whose source cannot be determined, without declaring them haram.",
+      "evidence_ids": [
+        "hadith-bukhari-52",
+        "hadith-muslim-1599a"
+      ],
+      "evidence_notes": {},
+      "qualifications": [
+        "An ingredient of unknown source is doubtful, not prohibited. Whether to avoid it is a matter of caution and personal practice."
+      ]
+    }
+  ]
+}

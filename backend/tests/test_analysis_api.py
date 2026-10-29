@@ -12,10 +12,12 @@ from app.rate_limit import SlidingWindowRateLimiter
 from tests.conftest import (
     FakeOpenRouter,
     chat_response,
+    concern,
     encode,
     ingredient,
     make_label,
     valid_analysis,
+    valid_reading,
 )
 
 URL = "/api/ingredients/analyze"
@@ -110,86 +112,419 @@ def test_multilingual_label_preserves_original_text(
     french = "mono- et diglycérides d'acides gras (E471)"
     openrouter.handler = lambda _r: chat_response(
         valid_analysis(
-            detected_language=["Arabic", "French"],
+            detected_languages=["Arabic", "French"],
             extracted_ingredients_text=f"المكونات: سكر، {arabic} / Ingrédients : sucre, {french}",
             overall_status="needs_further_investigation",
             ingredients=[
                 ingredient(
                     arabic,
-                    standardised_name="Gelatine",
-                    translation="gelatine",
+                    translated_name="gelatine",
+                    standardised_identity="Gelatine",
+                    alternative_names=["gelatin"],
                     possible_sources=["pork", "animal"],
                     assessment="potential_concern",
                     needs_more_information=True,
                 ),
                 ingredient(
                     french,
-                    standardised_name="Mono- and diglycerides of fatty acids",
-                    translation="mono- and diglycerides of fatty acids",
+                    translated_name="mono- and diglycerides of fatty acids",
+                    standardised_identity="Mono- and diglycerides of fatty acids",
                     e_number="E471",
                     possible_sources=["plant", "animal"],
                     assessment="unknown",
                     needs_more_information=True,
                 ),
             ],
+            identified_concerns=[concern(arabic, "swine"), concern(french, "swine")],
         )
     )
 
     body = upload(client, encode(LABEL)).json()
 
-    assert body["detected_language"] == ["Arabic", "French"]
+    assert body["detected_languages"] == ["Arabic", "French"]
     assert body["extracted_ingredients_text"].startswith("المكونات")
     gelatine, e471 = body["ingredients"]
     assert gelatine["original_text"] == arabic
-    assert gelatine["translation"] == "gelatine"
+    assert gelatine["translated_name"] == "gelatine"
     assert e471["original_text"] == french
     assert e471["e_number"] == "E471"
 
 
-# --- Safeguards on the model's verdict -------------------------------------------------------
+# --- Knowledge base cross-check (independent of the label's language) ------------------------
 
 
-def test_ambiguous_source_prevents_likely_halal(
+def test_knowledge_base_matches_via_english_interpretation(
     client: TestClient, openrouter: FakeOpenRouter
 ) -> None:
+    """An Arabic name doesn't escape the knowledge base: its English interpretation is matched."""
     openrouter.handler = lambda _r: chat_response(
         valid_analysis(
-            overall_status="likely_halal",
+            detected_languages=["Arabic"],
             ingredients=[
-                ingredient("sugar"),
-                ingredient(
-                    "E471",
-                    possible_sources=["plant", "animal"],
-                    assessment="unknown",
-                    needs_more_information=True,
-                ),
+                ingredient("سكر", translated_name="sugar"),
+                # The model wrongly calls it permissible; the knowledge base disagrees.
+                ingredient("جيلاتين", translated_name="gelatine", standardised_identity="Gelatine"),
             ],
         )
     )
 
     body = upload(client, encode(LABEL)).json()
 
+    gelatine = body["ingredients"][1]
+    assert gelatine["knowledge_base_match"] == {
+        "term": "gelatine",
+        "ruling": "doubtful",
+        "note": "Usually pork or non-halal beef unless the source is stated",
+    }
+    assert gelatine["assessment"] == "unknown"
+    assert gelatine["needs_more_information"] is True
     assert body["overall_status"] == "needs_further_investigation"
-    assert "source of at least one ingredient is uncertain" in body["adjustments"][0]
+    assert any("knowledge base" in note for note in body["adjustments"])
 
 
-def test_needs_more_information_alone_prevents_likely_halal(
+def test_most_specific_knowledge_base_term_wins(
     client: TestClient, openrouter: FakeOpenRouter
 ) -> None:
     openrouter.handler = lambda _r: chat_response(
         valid_analysis(
-            ingredients=[ingredient("natural flavouring", needs_more_information=True)],
+            ingredients=[
+                ingredient(
+                    "جيلاتين الخنزير",
+                    translated_name="pork gelatine",
+                    standardised_identity="Gelatine",
+                    established_source="pork",
+                    possible_sources=["pork"],
+                    assessment="potential_concern",
+                    evidence_basis="label",
+                )
+            ],
+            identified_concerns=[],
+            overall_status="potentially_non_halal",
         )
     )
 
-    assert upload(client, encode(LABEL)).json()["overall_status"] == "needs_further_investigation"
+    body = upload(client, encode(LABEL)).json()
+
+    assert body["ingredients"][0]["knowledge_base_match"]["term"] == "pork gelatine"
+    # The knowledge base adds the swine concern the model left out, as a possible concern.
+    [added] = body["identified_concerns"]
+    assert added["principle_id"] == "swine"
+    assert added["concern_type"] == "possible_prohibited_source"
+    assert added["verified_prohibited_source"] is False
+
+
+def test_knowledge_base_never_relaxes_a_concern(
+    client: TestClient, openrouter: FakeOpenRouter
+) -> None:
+    """Flavourings are ruled halal in the knowledge base, but a model concern still stands."""
+    openrouter.handler = lambda _r: chat_response(
+        valid_analysis(
+            overall_status="needs_further_investigation",
+            ingredients=[
+                ingredient(
+                    "arôme",
+                    translated_name="flavouring",
+                    possible_sources=["plant", "alcohol"],
+                    assessment="unknown",
+                    needs_more_information=True,
+                )
+            ],
+            identified_concerns=[concern("arôme", "intoxicants")],
+        )
+    )
+
+    body = upload(client, encode(LABEL)).json()
+
+    assert body["ingredients"][0]["knowledge_base_match"]["ruling"] == "halal"
+    assert body["ingredients"][0]["assessment"] == "unknown"
+    assert body["overall_status"] == "needs_further_investigation"
+
+
+# --- Haram only when both questions are answered ---------------------------------------------
+
+
+def pork_gelatine_analysis(**overrides: object) -> dict[str, object]:
+    analysis = valid_analysis(
+        detected_languages=["Arabic"],
+        overall_status="haram",
+        confidence="high",
+        ingredients=[
+            ingredient("سكر", translated_name="sugar"),
+            ingredient(
+                "جيلاتين الخنزير",
+                translated_name="pork gelatine",
+                standardised_identity="Gelatine (porcine)",
+                possible_sources=["pork"],
+                established_source="pork",
+                assessment="potential_concern",
+                evidence="The label says جيلاتين الخنزير, 'pork gelatine'.",
+                evidence_basis="label",
+            ),
+        ],
+        identified_concerns=[
+            concern(
+                "جيلاتين الخنزير",
+                "swine",
+                concern_type="established_prohibited_source",
+                source_evidence="The label names the gelatine as pork gelatine.",
+                source_evidence_basis="label",
+                connection="The gelatine is stated to come from pigs.",
+                unresolved_question=None,
+            )
+        ],
+    )
+    analysis.update(overrides)
+    return analysis
+
+
+def test_established_pork_source_is_haram_with_specific_reason(
+    client: TestClient, openrouter: FakeOpenRouter
+) -> None:
+    openrouter.handler = lambda _r: chat_response(pork_gelatine_analysis())
+
+    body = upload(client, encode(LABEL)).json()
+
+    assert body["overall_status"] == "haram"
+    assert body["adjustments"] == []
+    [reason] = body["reason_for_prohibition"]
+    assert reason["ingredient_on_packaging"] == "جيلاتين الخنزير"
+    assert reason["translated_name"] == "pork gelatine"
+    assert reason["standardised_name"] == "Gelatine (porcine)"
+    assert reason["source"] == "pork"
+    assert reason["source_evidence_basis"] == "label"
+    assert reason["principle_id"] == "swine"
+    assert reason["why_prohibited"].startswith("The Qur'an explicitly prohibits the flesh of swine")
+    assert reason["connection"] == "The gelatine is stated to come from pigs."
+    assert reason["evidence_ids"] == [
+        "quran-2-173",
+        "quran-5-3",
+        "quran-6-145",
+        "hadith-bukhari-2236",
+    ]
+    assert reason["has_verified_hadith"] is True
+    assert any("istihalah" in q for q in reason["qualifications"])
+
+
+def test_haram_result_cites_verified_library_evidence(
+    client: TestClient, openrouter: FakeOpenRouter
+) -> None:
+    openrouter.handler = lambda _r: chat_response(pork_gelatine_analysis())
+
+    body = upload(client, encode(LABEL)).json()
+
+    evidence = {item["id"]: item for item in body["islamic_evidence"]}
+    quran = evidence["quran-2-173"]
+    assert quran["reference"] == "Qur'an 2:173"
+    assert quran["url"] == "https://quran.com/2/173"
+    assert quran["translation_source"] == "Saheeh International"
+    assert "the flesh of swine" in quran["translation"]
+    assert "لَحْمَ ٱلْخِنزِيرِ" in quran["arabic_text"]
+    assert quran["principle_ids"] == ["swine"]
+    hadith = evidence["hadith-bukhari-2236"]
+    assert hadith["url"] == "https://sunnah.com/bukhari:2236"
+    assert hadith["authenticity"]["grade"] == "Sahih"
+    assert hadith["excerpt"] is True
+    assert any("does not mention modern food additives" in note for note in hadith["notes"])
+
+
+def test_unknown_gelatine_is_never_haram(client: TestClient, openrouter: FakeOpenRouter) -> None:
+    """The model claims haram, but the label does not establish a pig source."""
+    openrouter.handler = lambda _r: chat_response(
+        pork_gelatine_analysis(
+            ingredients=[
+                ingredient(
+                    "gélatine",
+                    translated_name="gelatine",
+                    possible_sources=["pork", "animal"],
+                    established_source=None,
+                    assessment="potential_concern",
+                    needs_more_information=True,
+                )
+            ],
+            identified_concerns=[
+                concern(
+                    "gélatine",
+                    "swine",
+                    concern_type="established_prohibited_source",
+                    source_evidence="Gelatine is commonly made from pork.",
+                    source_evidence_basis="general_knowledge",
+                )
+            ],
+        )
+    )
+
+    body = upload(client, encode(LABEL)).json()
+
+    assert body["overall_status"] == "potentially_non_halal"
+    assert body["reason_for_prohibition"] == []
+    assert body["identified_concerns"][0]["verified_prohibited_source"] is False
+    assert "not supported" in body["adjustments"][0]
+
+
+def test_chemical_name_alone_does_not_establish_source(
+    client: TestClient, openrouter: FakeOpenRouter
+) -> None:
+    """A label-basis claim still needs the ingredient's source to be established."""
+    openrouter.handler = lambda _r: chat_response(
+        pork_gelatine_analysis(
+            ingredients=[
+                ingredient(
+                    "glycerol monostearate",
+                    standardised_identity="Mono- and diglycerides of fatty acids",
+                    e_number="E471",
+                    possible_sources=["plant", "animal", "pork"],
+                    established_source=None,
+                    assessment="potential_concern",
+                )
+            ],
+            identified_concerns=[
+                concern(
+                    "glycerol monostearate",
+                    "swine",
+                    concern_type="established_prohibited_source",
+                    source_evidence_basis="label",
+                )
+            ],
+        )
+    )
+
+    body = upload(client, encode(LABEL)).json()
+
+    assert body["overall_status"] == "potentially_non_halal"
+    assert (
+        body["ingredients"][0]["knowledge_base_match"]["term"]
+        == "mono- and diglycerides of fatty acids"
+    )
+
+
+def test_stated_beef_does_not_establish_carrion(
+    client: TestClient, openrouter: FakeOpenRouter
+) -> None:
+    """'Beef gelatine' establishes the animal, not that it wasn't slaughtered Islamically."""
+    openrouter.handler = lambda _r: chat_response(
+        pork_gelatine_analysis(
+            ingredients=[
+                ingredient(
+                    "beef gelatine",
+                    possible_sources=["animal"],
+                    established_source="animal",
+                    assessment="potential_concern",
+                    needs_more_information=True,
+                    evidence_basis="label",
+                )
+            ],
+            identified_concerns=[
+                concern(
+                    "beef gelatine",
+                    "carrion",
+                    concern_type="established_prohibited_source",
+                    source_evidence_basis="label",
+                )
+            ],
+        )
+    )
+
+    assert upload(client, encode(LABEL)).json()["overall_status"] == "potentially_non_halal"
+
+
+def test_disputed_ingredient_is_not_haram(client: TestClient, openrouter: FakeOpenRouter) -> None:
+    openrouter.handler = lambda _r: chat_response(
+        pork_gelatine_analysis(
+            ingredients=[
+                ingredient(
+                    "carmin (E120)",
+                    translated_name="carmine",
+                    e_number="E120",
+                    possible_sources=["insect"],
+                    established_source="insect",
+                    assessment="potential_concern",
+                    evidence_basis="label",
+                )
+            ],
+            identified_concerns=[
+                concern(
+                    "carmin (E120)",
+                    "insects",
+                    concern_type="disputed_ingredient",
+                    source_evidence_basis="label",
+                )
+            ],
+        )
+    )
+
+    body = upload(client, encode(LABEL)).json()
+
+    assert body["overall_status"] == "potentially_non_halal"
+    [qualification] = body["scholarly_qualifications"]
+    assert qualification["principle_id"] == "insects"
+    assert qualification["category"] == "disputed"
+    assert any("Maliki" in note for note in qualification["notes"])
+
+
+def test_label_established_prohibited_source_upgrades_to_haram(
+    client: TestClient, openrouter: FakeOpenRouter
+) -> None:
+    openrouter.handler = lambda _r: chat_response(
+        pork_gelatine_analysis(overall_status="potentially_non_halal")
+    )
+
+    body = upload(client, encode(LABEL)).json()
+
+    assert body["overall_status"] == "haram"
+    assert "label establishes" in body["adjustments"][0]
+
+
+def test_principle_outside_the_library_is_removed(
+    client: TestClient, openrouter: FakeOpenRouter
+) -> None:
+    """The model can't cite anything outside the curated library."""
+    openrouter.handler = lambda _r: chat_response(
+        valid_analysis(
+            overall_status="potentially_non_halal",
+            identified_concerns=[concern("sugar", "invented_hadith_about_sugar")],
+        )
+    )
+
+    body = upload(client, encode(LABEL)).json()
+
+    assert body["identified_concerns"] == []
+    assert body["islamic_evidence"] == []
+    assert "not in HalalCheck’s verified evidence library was removed" in body["adjustments"][0]
+
+
+def test_unknown_sources_cite_doubtful_matters(
+    client: TestClient, openrouter: FakeOpenRouter
+) -> None:
+    openrouter.handler = lambda _r: chat_response(
+        valid_analysis(
+            overall_status="needs_further_investigation",
+            ingredients=[ingredient("enzymes", assessment="unknown", needs_more_information=True)],
+            unresolved_questions=["Are the enzymes microbial or animal-derived?"],
+        )
+    )
+
+    body = upload(client, encode(LABEL)).json()
+
+    assert [e["id"] for e in body["islamic_evidence"]] == [
+        "hadith-bukhari-52",
+        "hadith-muslim-1599a",
+    ]
+    assert body["unresolved_questions"] == ["Are the enzymes microbial or animal-derived?"]
+    [source] = body["ingredient_source_evidence"]
+    assert source["ingredient"] == "enzymes"
+    assert source["established_source"] is None
+
+
+# --- Other safeguards ------------------------------------------------------------------------
 
 
 def test_concern_prevents_likely_halal(client: TestClient, openrouter: FakeOpenRouter) -> None:
     openrouter.handler = lambda _r: chat_response(
         valid_analysis(
             ingredients=[
-                ingredient("gelatine", possible_sources=["pork"], assessment="potential_concern")
+                ingredient(
+                    "emulsifier", possible_sources=["animal"], assessment="potential_concern"
+                )
             ],
         )
     )
@@ -197,26 +532,7 @@ def test_concern_prevents_likely_halal(client: TestClient, openrouter: FakeOpenR
     body = upload(client, encode(LABEL)).json()
 
     assert body["overall_status"] == "potentially_non_halal"
-    assert "marked as a concern" in body["adjustments"][0]
-
-
-def test_prohibited_finding_forces_potentially_non_halal(
-    client: TestClient, openrouter: FakeOpenRouter
-) -> None:
-    openrouter.handler = lambda _r: chat_response(
-        valid_analysis(
-            overall_status="needs_further_investigation",
-            prohibited_findings=[
-                {"ingredient": "pork gelatine", "source": "pork", "evidence": "Label says pork."}
-            ],
-        )
-    )
-
-    body = upload(client, encode(LABEL)).json()
-
-    assert body["overall_status"] == "potentially_non_halal"
-    assert body["prohibited_findings"][0]["source"] == "pork"
-    assert "prohibited source" in body["adjustments"][0]
+    assert "identified as a concern" in body["adjustments"][0]
 
 
 def test_unreadable_label_is_never_likely_halal(
@@ -263,6 +579,44 @@ def test_safeguards_never_make_the_result_less_cautious(
     assert body["adjustments"] == []
 
 
+# --- Step 1: reading the label ---------------------------------------------------------------
+
+
+def test_reads_a_label_with_the_fast_model(client: TestClient, openrouter: FakeOpenRouter) -> None:
+    openrouter.handler = lambda _r: chat_response(valid_reading())
+
+    response = client.post(
+        "/api/ingredients/read", files={"image": ("label.jpg", encode(LABEL), "image/jpeg")}
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["model"] == "test/fast-reader"
+    assert body["detected_languages"] == ["Arabic"]
+    assert body["ingredients_text"] == "المكونات: سكر، جيلاتين"
+    uncertain = body["ingredients"][1]
+    assert uncertain["original_text"] == "جيلاتين"
+    assert uncertain["reading_uncertain"] is True
+    sent = openrouter.last_body
+    assert sent["model"] == "test/fast-reader"
+    assert sent["response_format"]["json_schema"]["name"] == "label_reading"
+    assert "do not assess halal status" in sent["messages"][0]["content"]
+
+
+def test_reading_requires_an_image(client: TestClient) -> None:
+    assert client.post("/api/ingredients/read").status_code == 400
+
+
+def test_reading_rejects_malformed_output(client: TestClient, openrouter: FakeOpenRouter) -> None:
+    openrouter.handler = lambda _r: chat_response({"ingredients": "not a list"})
+
+    response = client.post(
+        "/api/ingredients/read", files={"image": ("label.jpg", encode(LABEL), "image/jpeg")}
+    )
+
+    assert response.status_code == 502
+
+
 # --- Malformed or incomplete model responses -------------------------------------------------
 
 
@@ -287,9 +641,10 @@ def test_normalises_enum_spelling(client: TestClient, openrouter: FakeOpenRouter
             confidence="HIGH",
             ingredients=[
                 ingredient(
-                    "whey",
+                    "water",
                     assessment="Likely-Permissible",
-                    possible_sources=["Animal", "dairy", "animal"],
+                    possible_sources=["Mineral", "liquid", "mineral"],
+                    established_source="Mineral",
                 )
             ],
         )
@@ -301,7 +656,8 @@ def test_normalises_enum_spelling(client: TestClient, openrouter: FakeOpenRouter
     assert body["confidence"] == "high"
     assert body["ingredients"][0]["assessment"] == "likely_permissible"
     # Unrecognised sources become "unknown"; duplicates are removed.
-    assert body["ingredients"][0]["possible_sources"] == ["animal", "unknown"]
+    assert body["ingredients"][0]["possible_sources"] == ["mineral", "unknown"]
+    assert body["ingredients"][0]["established_source"] == "mineral"
 
 
 @pytest.mark.parametrize(

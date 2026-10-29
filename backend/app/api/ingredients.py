@@ -8,7 +8,7 @@ from app.ai.openrouter import OpenRouterClient
 from app.config import get_settings
 from app.errors import InvalidInputError
 from app.images import ImageTooLargeError, UnsupportedImageTypeError, prepare_image
-from app.models.analysis import IngredientsAnalysis
+from app.models.analysis import IngredientsAnalysis, LabelReadingResult
 from app.models.product import ErrorResponse
 from app.rate_limit import SlidingWindowRateLimiter
 
@@ -29,6 +29,7 @@ def get_analyzer(request: Request) -> IngredientsAnalyzer:
         client,
         model=settings.openrouter_model,
         structured_outputs=settings.openrouter_structured_outputs,
+        reading_model=settings.halal_model,
     )
 
 
@@ -50,6 +51,58 @@ async def read_upload(upload: UploadFile, max_bytes: int) -> bytes:
             )
         chunks.append(chunk)
     return b"".join(chunks)
+
+
+async def prepare_upload(image: UploadFile) -> bytes:
+    """Validate an uploaded photo and return it as a metadata-free JPEG for the model."""
+    settings = get_settings()
+    content_type = (image.content_type or "").split(";")[0].strip().lower()
+    if content_type not in ALLOWED_CONTENT_TYPES | GENERIC_CONTENT_TYPES:
+        raise UnsupportedImageTypeError()
+    try:
+        data = await read_upload(image, settings.max_upload_bytes)
+    finally:
+        await image.close()
+    if not data:
+        raise InvalidInputError("The uploaded file is empty.")
+    jpeg: bytes = await run_in_threadpool(
+        prepare_image,
+        data,
+        max_pixels=settings.max_image_pixels,
+        max_edge=settings.analysis_image_max_edge,
+    )
+    return jpeg
+
+
+@router.post(
+    "/read",
+    response_model=LabelReadingResult,
+    responses={
+        400: {"model": ErrorResponse, "description": "Missing or unreadable image"},
+        413: {"model": ErrorResponse, "description": "Image too large"},
+        415: {"model": ErrorResponse, "description": "Unsupported file type"},
+        429: {"model": ErrorResponse, "description": "Rate limit reached"},
+        502: {"model": ErrorResponse, "description": "Model rejected the request or replied badly"},
+        503: {"model": ErrorResponse, "description": "AI not configured or unavailable"},
+        504: {"model": ErrorResponse, "description": "AI timed out"},
+    },
+)
+async def read_label(
+    request: Request,
+    analyzer: Annotated[IngredientsAnalyzer, Depends(get_analyzer)],
+    limiter: Annotated[SlidingWindowRateLimiter, Depends(get_rate_limiter)],
+    image: Annotated[
+        UploadFile, File(description="Photo of the ingredients label (JPEG, PNG or WebP)")
+    ],
+) -> LabelReadingResult:
+    """Step 1: read and interpret an ingredients label in any language, for the user to check.
+
+    Returns the original text, an English interpretation of each ingredient, detected languages
+    and any uncertain readings. No halal assessment is made at this step.
+    """
+    image_jpeg = await prepare_upload(image)
+    limiter.check(request.client.host if request.client else "unknown")
+    return await analyzer.read(image_jpeg)
 
 
 @router.post(
@@ -78,36 +131,20 @@ async def analyze_ingredients(
         Form(description="User-corrected ingredients text. Takes precedence over the photo."),
     ] = None,
 ) -> IngredientsAnalysis:
-    """Assess an ingredients label for halal-relevant ingredients using a vision model.
+    """Step 2: assess ingredients for halal-relevant concerns using a vision model.
 
-    Send a photo, corrected ingredients text, or both (to re-run with corrections). The image is
-    processed in memory, stripped of metadata, sent to OpenRouter and never stored by HalalCheck.
-    The result is informational guidance, not a religious ruling or certification.
+    Send the confirmed ingredients text with the photo as supporting evidence (recommended), a
+    photo alone, or text alone. The image is processed in memory, stripped of metadata, sent to
+    OpenRouter and never stored by HalalCheck. The result is informational guidance, not a
+    religious ruling or certification.
     """
-    settings = get_settings()
     text = (ingredients_text or "").strip() or None
     if text is not None and len(text) > MAX_TEXT_LENGTH:
         raise InvalidInputError(
             f"The ingredients text is too long. Please keep it under {MAX_TEXT_LENGTH} characters."
         )
 
-    image_jpeg: bytes | None = None
-    if image is not None:
-        content_type = (image.content_type or "").split(";")[0].strip().lower()
-        if content_type not in ALLOWED_CONTENT_TYPES | GENERIC_CONTENT_TYPES:
-            raise UnsupportedImageTypeError()
-        try:
-            data = await read_upload(image, settings.max_upload_bytes)
-        finally:
-            await image.close()
-        if not data:
-            raise InvalidInputError("The uploaded file is empty.")
-        image_jpeg = await run_in_threadpool(
-            prepare_image,
-            data,
-            max_pixels=settings.max_image_pixels,
-            max_edge=settings.analysis_image_max_edge,
-        )
+    image_jpeg = await prepare_upload(image) if image is not None else None
 
     if image_jpeg is None and text is None:
         raise InvalidInputError("Please add a photo of the ingredients label.")

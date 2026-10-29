@@ -75,6 +75,7 @@ def client(
             OpenRouterClient(http, settings),
             model=settings.openrouter_model,
             structured_outputs=settings.openrouter_structured_outputs,
+            reading_model="test/fast-reader",
         )
 
     app.dependency_overrides[get_analyzer] = analyzer
@@ -90,11 +91,13 @@ def client(
 def ingredient(original: str, **overrides: Any) -> dict[str, Any]:
     finding: dict[str, Any] = {
         "original_text": original,
-        "standardised_name": original.capitalize(),
-        "translation": None,
+        "translated_name": None,
+        "standardised_identity": original.capitalize(),
+        "alternative_names": [],
         "e_number": None,
+        "reading_uncertain": False,
         "possible_sources": ["plant"],
-        "source_established": False,
+        "established_source": None,
         "assessment": "likely_permissible",
         "explanation": f"{original} is plant-derived.",
         "evidence": "General knowledge of how it is made.",
@@ -105,24 +108,68 @@ def ingredient(original: str, **overrides: Any) -> dict[str, Any]:
     return finding
 
 
+def concern(ingredient_name: str, principle_id: str, **overrides: Any) -> dict[str, Any]:
+    finding: dict[str, Any] = {
+        "ingredient": ingredient_name,
+        "principle_id": principle_id,
+        "concern_type": "possible_prohibited_source",
+        "source_evidence": "The label does not state the source.",
+        "source_evidence_basis": "general_knowledge",
+        "connection": f"{ingredient_name} may fall under {principle_id}.",
+        "unresolved_question": "Which source was used?",
+    }
+    finding.update(overrides)
+    return finding
+
+
 def valid_analysis(**overrides: Any) -> dict[str, Any]:
     analysis: dict[str, Any] = {
         "label_readable": True,
         "readability_notes": None,
-        "detected_language": ["English"],
+        "detected_languages": ["English"],
         "extracted_ingredients_text": "Ingredients: sugar, salt.",
         "overall_status": "likely_halal",
         "confidence": "medium",
         "summary": "No ingredients of concern were identified.",
         "ingredients": [ingredient("sugar"), ingredient("salt", possible_sources=["mineral"])],
-        "prohibited_findings": [],
-        "concerns": [],
-        "certification_information": {"marks_visible": [], "notes": "None visible."},
+        "identified_concerns": [],
+        "certification_status": {"marks_visible": [], "notes": "None visible."},
+        "unresolved_questions": [],
+        "recommended_next_steps": ["Check for a recognised halal certification."],
         "limitations": ["No external verification."],
-        "next_steps": ["Check for a recognised halal certification."],
     }
     analysis.update(overrides)
     return analysis
+
+
+def valid_reading(**overrides: Any) -> dict[str, Any]:
+    reading: dict[str, Any] = {
+        "label_readable": True,
+        "readability_notes": None,
+        "clarification_request": None,
+        "detected_languages": ["Arabic"],
+        "ingredients_text": "المكونات: سكر، جيلاتين",
+        "ingredients": [
+            {
+                "original_text": "سكر",
+                "translated_name": "sugar",
+                "e_number": None,
+                "alternative_names": [],
+                "reading_uncertain": False,
+                "reading_note": None,
+            },
+            {
+                "original_text": "جيلاتين",
+                "translated_name": "gelatine",
+                "e_number": None,
+                "alternative_names": ["gelatin"],
+                "reading_uncertain": True,
+                "reading_note": "The last letter is partly hidden by a fold.",
+            },
+        ],
+    }
+    reading.update(overrides)
+    return reading
 
 
 def chat_response(

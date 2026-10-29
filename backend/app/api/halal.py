@@ -14,6 +14,7 @@ from app.api.ingredients import (
 from app.api.products import Lookup
 from app.config import get_settings
 from app.errors import InvalidInputError
+from app.evidence import PrincipleExplanation, explain
 from app.images import UnsupportedImageTypeError, prepare_image
 from app.models.halal import HalalVerdict, Reason
 from app.models.product import ErrorResponse
@@ -70,7 +71,16 @@ async def _judge(llm: LLMClient, text: str) -> HalalVerdict:
         reasons=reasons,
         ingredients_text=text,
         ai_checked=ai_checked,
+        explanations=_explanations(reasons),
     )
+
+
+def _explanations(reasons: list[Reason]) -> list[PrincipleExplanation]:
+    """Curated evidence for each principle behind a haram ruling (never AI-written)."""
+    principle_ids = dict.fromkeys(
+        r.principle_id for r in reasons if r.ruling == "haram" and r.principle_id
+    )
+    return [e for e in (explain(pid) for pid in principle_ids if pid) if e is not None]
 
 
 @router.get(

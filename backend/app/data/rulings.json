@@ -1,8 +1,8 @@
 [
-  { "match": ["pork", "pig", "lard", "bacon", "ham", "gammon", "pancetta", "prosciutto", "pork gelatine", "pork fat"], "ruling": "haram", "note": "Pork or pork-derived" },
-  { "match": ["blood", "black pudding"], "ruling": "haram", "note": "Blood is prohibited" },
-  { "match": ["wine", "beer", "cider", "rum", "brandy", "sherry", "whisky", "vodka", "liqueur", "champagne"], "ruling": "haram", "note": "Alcoholic drink as an ingredient" },
-  { "match": ["E120", "carmine", "cochineal", "carminic acid"], "ruling": "haram", "note": "Insect-derived colour; rejected by UK certifiers, some scholars permit" },
+  { "match": ["pork", "pig", "lard", "bacon", "ham", "gammon", "pancetta", "prosciutto", "pork gelatine", "pork fat"], "ruling": "haram", "note": "Pork or pork-derived", "principle": "swine" },
+  { "match": ["blood", "black pudding"], "ruling": "haram", "note": "Blood is prohibited", "principle": "blood" },
+  { "match": ["wine", "beer", "cider", "rum", "brandy", "sherry", "whisky", "vodka", "liqueur", "champagne"], "ruling": "haram", "note": "Alcoholic drink as an ingredient", "principle": "intoxicants" },
+  { "match": ["E120", "carmine", "cochineal", "carminic acid"], "ruling": "haram", "note": "Insect-derived colour; rejected by UK certifiers, some scholars permit", "principle": "insects" },
 
   { "match": ["gelatine", "gelatin", "E441"], "ruling": "doubtful", "note": "Usually pork or non-halal beef unless the source is stated" },
   { "match": ["collagen"], "ruling": "doubtful", "note": "Animal source not stated" },

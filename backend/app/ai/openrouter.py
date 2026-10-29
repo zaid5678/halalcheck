@@ -60,7 +60,13 @@ class OpenRouterClient:
         self._settings = settings
 
     async def complete(
-        self, messages: list[dict[str, Any]], *, schema: dict[str, Any] | None
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        schema: dict[str, Any] | None,
+        schema_name: str = "label_analysis",
+        model: str | None = None,
+        max_tokens: int | None = None,
     ) -> str:
         """Send a chat completion and return the assistant's text content."""
         settings = self._settings
@@ -71,14 +77,14 @@ class OpenRouterClient:
         # Only widely supported parameters are sent (some models reject e.g. temperature), so any
         # vision model with structured outputs can be swapped in via OPENROUTER_MODEL.
         body: dict[str, Any] = {
-            "model": settings.openrouter_model,
+            "model": model or settings.openrouter_model,
             "messages": messages,
-            "max_tokens": settings.openrouter_max_tokens,
+            "max_tokens": max_tokens or settings.openrouter_max_tokens,
         }
         if schema is not None:
             body["response_format"] = {
                 "type": "json_schema",
-                "json_schema": {"name": "label_analysis", "strict": True, "schema": schema},
+                "json_schema": {"name": schema_name, "strict": True, "schema": schema},
             }
             # Only route to providers that honour the structured-output request.
             body["provider"] = {"require_parameters": True}

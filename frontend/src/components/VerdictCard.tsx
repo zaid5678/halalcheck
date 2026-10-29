@@ -1,4 +1,5 @@
 import type { HalalVerdict, Reason, Ruling } from '../types/halal'
+import { PrincipleEvidence } from './EvidenceCard'
 
 const STYLES: Record<Ruling, { label: string; icon: string; text: string; badge: string; pill: string }> = {
   halal: { label: 'Halal', icon: '✓', text: 'text-brand-600', badge: 'bg-brand-600', pill: 'bg-brand-50 text-brand-700' },
@@ -65,6 +66,33 @@ export function VerdictCard({ result }: { result: HalalVerdict }) {
             ))}
           </ul>
         </div>
+      )}
+
+      {(result.explanations ?? []).length > 0 && (
+        <section aria-labelledby="verdict-evidence-heading" className="rounded-2xl border border-line bg-surface p-4 sm:p-5">
+          <h3 id="verdict-evidence-heading" className="font-semibold">
+            {result.verdict === 'haram' ? 'Why this product is assessed as haram' : 'Islamic evidence'}
+          </h3>
+          <p className="mt-1 text-sm text-muted">
+            What Islam prohibits, from HalalCheck’s verified library. The ingredients above are
+            matched to it from the product’s listed ingredients.
+          </p>
+          <div className="mt-3 space-y-6">
+            {(result.explanations ?? []).map((explanation) => (
+              <div key={explanation.principle_id}>
+                <p className="mb-1 text-xs font-semibold text-muted">
+                  Applies to:{' '}
+                  {ingredients
+                    .filter((reason) => reason.principle_id === explanation.principle_id)
+                    .map((reason) => reason.ingredient)
+                    .join(', ')}
+                  {explanation.category === 'disputed' && ' · scholars differ'}
+                </p>
+                <PrincipleEvidence explanation={explanation} />
+              </div>
+            ))}
+          </div>
+        </section>
       )}
     </section>
   )

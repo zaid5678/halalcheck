@@ -43,30 +43,59 @@ frontend/src/
 
 ## How Scan ingredients works
 
-1. **Take or upload a photo.** On phones, "Take photo" opens the system camera. On computers it opens an in-page camera. The user previews the photo and can retake or replace it before submitting.
-2. **Validate and prepare the image.** The backend accepts JPEG, PNG or WebP up to 10 MB and 40 megapixels, checking the actual file bytes. It rotates the image upright, scales it to at most 2048 px, and re-encodes it as JPEG. Re-encoding strips all metadata, including any GPS location, before the image leaves the server.
-3. **Analyse.** The image and instructions go to the configured OpenRouter vision model, with a strict JSON schema requested through structured outputs. The instructions ([`backend/app/ai/prompt.py`](backend/app/ai/prompt.py)) tell the model to:
-   - read the label in any language, keeping the original wording, translations and standard names;
-   - investigate each ingredient's possible sources (pork, other animal, insect, plant, mineral, synthetic, microbial, alcohol), not just match keywords;
-   - separate sources the label *states* from sources that can't be determined;
-   - never invent aliases, E-number mappings, certification or external verification;
-   - ask for a clearer photo instead of guessing when the label is unreadable.
-4. **Validate the reply.** The model's JSON is validated with Pydantic. Code fences and stray prose around the JSON are tolerated, and harmless spelling variations of the categories are normalised. Truncated, malformed or incomplete replies are rejected with a clear error instead of being shown.
-5. **Apply safeguards.** HalalCheck enforces rules whatever the model says. These rules can only make the result more cautious, and every change is shown to the user.
-   - Any prohibited-source finding means the result is **Potentially non-halal**.
-   - Any ingredient marked as a concern means the result can't be **Likely halal**.
-   - Any ingredient with an unknown or unconfirmed source, an unreadable label, or no identified ingredients means the result can't be **Likely halal**; it becomes **Needs further investigation**.
-   - An unreadable label means the confidence can't be "high".
-6. **Show the results.** The app shows the overall status with a confidence level, a summary, prohibited findings and concerns. Each ingredient appears with its original text, translation, E-number and possible sources, and is labelled as evidence *from the label* or *AI general knowledge (not independently verified)*. Certification marks are shown exactly as seen, with a note that the app can't confirm a logo is genuine. Limitations and next steps follow.
-7. **Correct and re-run.** The ingredients text the model read is editable. Users can fix misread words and re-run; the corrected text is treated as authoritative, and the photo is sent again for context such as certification marks.
+Scanning takes two steps, so the user can check what was read before anything is assessed.
 
-The three overall results:
+### Step 1: read the label (`POST /api/ingredients/read`, a few seconds)
 
-| Result | Meaning |
-| --- | --- |
-| **Likely halal** | No prohibited ingredients or unresolved material concerns were identified from the available evidence. Not a certification. |
-| **Potentially non-halal** | A credible concern was identified, though the evidence may not be enough for a definitive ruling. |
-| **Needs further investigation** | The label is incomplete or ambiguous, or one or more ingredients have an uncertain source. |
+A fast vision model (`HALALCHECK_HALAL_MODEL`) transcribes the ingredients list in any language or mix of languages, including English, Arabic, French, Turkish, Urdu, German and Spanish. For each ingredient it returns:
+
+- the **original text** in its original script;
+- an **English name**, the E-number, and any recognised synonyms, scientific names or transliterations;
+- a **flag** when the reading or the translation may be wrong.
+
+If part of the label is ambiguous, the model asks the user a specific question instead of guessing. The user then checks the list against the pack and edits it if needed.
+
+### Step 2: assess the ingredients (`POST /api/ingredients/analyze`, 15–40 seconds)
+
+The confirmed text is sent to `OPENROUTER_MODEL`, with the photo as supporting evidence. The model is told to keep two questions apart:
+
+- **A. What does Islam prohibit?** The model may only *refer* to principles in HalalCheck's curated evidence library, by ID. It never writes, quotes or cites Qur'an verses, hadith or other sources.
+- **B. Does this ingredient fall under that prohibition?** This is answered from the ingredient's identity and source. A source counts as *established* only when the label itself states it, such as "pork gelatine", "lard", "Schweineschmalz" or "wine". A chemical name alone, or "gelatine" without a source, doesn't establish one.
+
+HalalCheck then checks and enriches the model's answer on the server:
+
+1. **Knowledge base cross-check.** Each ingredient is matched against the rulings in [`backend/app/data/rulings.json`](backend/app/data/rulings.json) using its **English interpretation**, E-number and alternative names, not the label's own words. An Arabic or French ingredient name therefore can't escape detection. A knowledge-base concern can make an ingredient *more* cautious, never less.
+2. **"Haram" requires both answers.** The overall result is **Haram** only when the principle is a clear prohibition (A) **and** the label establishes that the ingredient comes from that prohibited source (B). The server enforces this rule whatever the model says. Possible sources, disputed ingredients such as carmine, and meat whose slaughter is unknown never produce "Haram".
+3. **Curated evidence attached.** Every verse and hadith shown comes from the library, never from the model. A principle ID the model invents is removed, and the removal is recorded.
+4. **Other safeguards.** An unreadable label, an unknown source or a concern rules out **Likely halal**. Every change the server makes to the model's result is listed for the user.
+
+### Result
+
+The result shows one of four statuses: **Haram**, **Potentially non-halal**, **Needs further investigation** or **Likely halal**.
+
+For a haram result, **"Why this product is assessed as haram"** shows:
+
+- the ingredient as named on the pack, with its translation and standard name;
+- its established source and the label evidence for it;
+- the curated principle, and the AI's explanation linking the two (labelled as AI);
+- the Qur'an and hadith evidence, with Arabic, translation, translator, grade and a link to Quran.com or Sunnah.com;
+- scholarly qualifications.
+
+For other results, the page shows what is unknown and what would resolve it. Every statement is tagged as a **verified reference**, **from the label**, **AI general knowledge (not independently verified)** or **AI interpretation**.
+
+The barcode halal check (`/api/halal/barcode/…`) also attaches the curated evidence when a knowledge-base rule is haram.
+
+### The Islamic evidence library
+
+[`backend/app/data/islamic_evidence.json`](backend/app/data/islamic_evidence.json) holds every Qur'an verse and hadith HalalCheck can show.
+
+- **Qur'an:** verses 2:173, 5:3, 6:145, 16:115, 5:90, 6:121, 5:5 and 7:157. The Uthmani text (Tanzil) and Saheeh International translation were retrieved from AlQuran Cloud, with Quran.com links.
+- **Hadith:** Sahih al-Bukhari 52, 2236 and 5585; Sahih Muslim 1599a and 2003a; Sunan Ibn Majah 3314; and Sunan Abi Dawud 3681. The Arabic, English, numbering and grading were retrieved from Sunnah.com, along with who graded each one.
+- **Principles:** each groups its evidence (swine, carrion, blood, intoxicants, dedicated to other than Allah, insects, doubtful matters), with notes on what each text does and doesn't say, and scholarly qualifications.
+
+A principle is *prohibited*, *disputed* (insects) or *caution* (doubtful matters); only *prohibited* principles can lead to a haram result. The file is validated when the app loads, and by `tests/test_evidence.py`: references must resolve, every hadith must record its grading, and links must point to Quran.com or Sunnah.com.
+
+**Adding to the library:** add only texts whose wording, reference and grading you have checked against Quran.com or Sunnah.com, and have the principles and qualifications reviewed by someone qualified. Those summaries were written for HalalCheck and are the parts most in need of scholarly review.
 
 ## Local setup
 
@@ -145,7 +174,8 @@ All errors share one shape: `{"error": {"code": "...", "message": "..."}}`. Mess
 | Endpoint | Description |
 | --- | --- |
 | `GET /api/health` | `{"status": "ok", "ai_configured": true}` |
-| `POST /api/ingredients/analyze` | Multipart form with `image` (JPEG, PNG or WebP, up to 10 MB), `ingredients_text` (corrected text, up to 5000 characters), or both. Returns the structured analysis described in [`backend/app/models/analysis.py`](backend/app/models/analysis.py). |
+| `POST /api/ingredients/read` | Multipart form with `image`. Returns the label as read: original text, English names, E-numbers, alternative names, uncertain readings, detected languages and any clarification question. |
+| `POST /api/ingredients/analyze` | Multipart form with `ingredients_text` (confirmed text, up to 5000 characters) and/or `image`. Returns the structured assessment in [`backend/app/models/analysis.py`](backend/app/models/analysis.py): `overall_status`, `summary`, `detected_languages`, `ingredients`, `identified_concerns`, `reason_for_prohibition`, `ingredient_source_evidence`, `islamic_evidence`, `scholarly_qualifications`, `certification_status`, `unresolved_questions`, `recommended_next_steps`, `limitations` and `adjustments`. |
 | `GET /api/products/search?q=…` | Validates the query, then returns `501 product_lookup_unavailable`. |
 | `GET /api/products/barcode/{barcode}` | Validates the barcode (8–14 digits), then returns `501 product_lookup_unavailable`. |
 

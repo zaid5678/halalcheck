@@ -29,9 +29,21 @@ def check_ingredients(text: str) -> list[Reason]:
         entry = _BY_TERM[term]
         if entry["ruling"] != "halal" and term not in reasons:
             reasons[term] = Reason(
-                ingredient=match.group(1), ruling=entry["ruling"], note=entry["note"]
+                ingredient=match.group(1),
+                ruling=entry["ruling"],
+                note=entry["note"],
+                principle_id=entry.get("principle"),
             )
     return list(reasons.values())
+
+
+def lookup_terms(text: str) -> list[tuple[str, dict[str, str]]]:
+    """Every knowledge-base term found in `text` (including halal ones) with its entry."""
+    found: dict[str, dict[str, str]] = {}
+    for match in _PATTERN.finditer(_E_NUMBER.sub(r"E\1", text)):
+        term = match.group(1).lower()
+        found.setdefault(term, _BY_TERM[term])
+    return list(found.items())
 
 
 def is_ruled_halal(text: str) -> bool:

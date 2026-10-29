@@ -1,15 +1,8 @@
 import { act, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { HalalVerdict } from '../types/halal'
+import type { IngredientResult, IngredientsAnalysis, LabelReading } from '../types/analysis'
+import type { CitedEvidence } from '../types/analysis'
 import { mockApi, renderApp } from './utils'
-
-const verdict: HalalVerdict = {
-  verdict: 'doubtful',
-  reasons: [{ ingredient: 'E471', ruling: 'doubtful', note: 'Can be animal or plant fat' }],
-  ingredients_text: 'Sugar, salt, emulsifier (E471)',
-  ai_checked: true,
-  product: null,
-}
 
 function photo(name = 'label.jpg', type = 'image/jpeg') {
   return new File([new Uint8Array(2048)], name, { type })
@@ -18,23 +11,203 @@ function photo(name = 'label.jpg', type = 'image/jpeg') {
 const uploadInput = () => screen.getByLabelText('Upload an image file') as HTMLInputElement
 const cameraInput = () => screen.getByLabelText('Take a photo with your camera') as HTMLInputElement
 
-function photoRoute(...responses: { status?: number; body: unknown }[]) {
-  let call = 0
+const reading: LabelReading = {
+  label_readable: true,
+  readability_notes: null,
+  clarification_request: 'Is the third ingredient “جيلاتين الخنزير” or “جيلاتين البقر”?',
+  detected_languages: ['Arabic'],
+  ingredients_text: 'المكونات: سكر، جيلاتين الخنزير، نكهات',
+  ingredients: [
+    { original_text: 'سكر', translated_name: 'sugar', e_number: null, alternative_names: [], reading_uncertain: false, reading_note: null },
+    {
+      original_text: 'جيلاتين الخنزير',
+      translated_name: 'pork gelatine',
+      e_number: null,
+      alternative_names: ['porcine gelatin'],
+      reading_uncertain: true,
+      reading_note: 'The second word is partly covered by a crease.',
+    },
+    { original_text: 'نكهات', translated_name: 'flavourings', e_number: null, alternative_names: [], reading_uncertain: false, reading_note: null },
+  ],
+  model: 'google/gemini-3.1-flash-lite',
+}
+
+function ingredient(original: string, overrides: Partial<IngredientResult> = {}): IngredientResult {
+  return {
+    original_text: original,
+    translated_name: null,
+    standardised_identity: null,
+    alternative_names: [],
+    e_number: null,
+    reading_uncertain: false,
+    possible_sources: ['plant'],
+    established_source: null,
+    assessment: 'likely_permissible',
+    explanation: `${original} is plant-derived.`,
+    evidence: 'General knowledge of how it is made.',
+    evidence_basis: 'general_knowledge',
+    needs_more_information: false,
+    knowledge_base_match: null,
+    ...overrides,
+  }
+}
+
+const quran2173: CitedEvidence = {
+  id: 'quran-2-173',
+  source_type: 'quran',
+  reference: "Qur'an 2:173",
+  title: 'Surah Al-Baqara (2), verse 173',
+  narrator: null,
+  arabic_text: 'إِنَّمَا حَرَّمَ عَلَيْكُمُ ٱلْمَيْتَةَ وَٱلدَّمَ وَلَحْمَ ٱلْخِنزِيرِ',
+  translation: 'He has only forbidden to you dead animals, blood, the flesh of swine…',
+  translation_source: 'Saheeh International',
+  text_source: 'Uthmani text (Tanzil) via AlQuran Cloud',
+  authenticity: null,
+  url: 'https://quran.com/2/173',
+  excerpt: false,
+  principle_ids: ['swine'],
+  notes: [],
+}
+
+const bukhari2236: CitedEvidence = {
+  ...quran2173,
+  id: 'hadith-bukhari-2236',
+  source_type: 'hadith',
+  reference: 'Sahih al-Bukhari 2236',
+  title: 'Sahih al-Bukhari 2236',
+  narrator: 'Narrated Jabir bin `Abdullah',
+  arabic_text: 'إِنَّ اللَّهَ وَرَسُولَهُ حَرَّمَ بَيْعَ الْخَمْرِ وَالْمَيْتَةِ وَالْخِنْزِيرِ وَالأَصْنَامِ',
+  translation: 'Allah and His Apostle made illegal the trade of alcohol, dead animals, pigs and idols.',
+  translation_source: 'Sunnah.com (M. Muhsin Khan)',
+  text_source: 'Sunnah.com',
+  authenticity: { grade: 'Sahih', graded_by: 'Included in Sahih al-Bukhari' },
+  url: 'https://sunnah.com/bukhari:2236',
+  excerpt: true,
+  notes: ['This narration concerns trading in pigs… it does not mention modern food additives.'],
+}
+
+const haramAnalysis: IngredientsAnalysis = {
+  label_readable: true,
+  readability_notes: null,
+  detected_languages: ['Arabic'],
+  extracted_ingredients_text: 'المكونات: سكر، جيلاتين الخنزير، نكهات',
+  overall_status: 'haram',
+  confidence: 'high',
+  summary: 'The label states pork gelatine, a pig-derived ingredient.',
+  ingredients: [
+    ingredient('سكر', { translated_name: 'sugar' }),
+    ingredient('جيلاتين الخنزير', {
+      translated_name: 'pork gelatine',
+      standardised_identity: 'Gelatine (porcine)',
+      possible_sources: ['pork'],
+      established_source: 'pork',
+      assessment: 'potential_concern',
+      evidence: 'The label says جيلاتين الخنزير, “pork gelatine”.',
+      evidence_basis: 'label',
+      knowledge_base_match: { term: 'pork gelatine', ruling: 'haram', note: 'Pork or pork-derived' },
+    }),
+  ],
+  identified_concerns: [
+    {
+      ingredient: 'جيلاتين الخنزير',
+      principle_id: 'swine',
+      principle_title: 'Pork and pig-derived ingredients',
+      principle_category: 'prohibited',
+      concern_type: 'established_prohibited_source',
+      source_evidence: 'The label names the gelatine as pork gelatine.',
+      source_evidence_basis: 'label',
+      connection: 'The gelatine is stated to come from pigs.',
+      unresolved_question: null,
+      verified_prohibited_source: true,
+    },
+  ],
+  reason_for_prohibition: [
+    {
+      ingredient_on_packaging: 'جيلاتين الخنزير',
+      translated_name: 'pork gelatine',
+      standardised_name: 'Gelatine (porcine)',
+      source: 'pork',
+      source_evidence: 'The label names the gelatine as pork gelatine.',
+      source_evidence_basis: 'label',
+      principle_id: 'swine',
+      principle_title: 'Pork and pig-derived ingredients',
+      why_prohibited: 'The Qur’an explicitly prohibits the flesh of swine.',
+      connection: 'The gelatine is stated to come from pigs.',
+      evidence_ids: ['quran-2-173', 'hadith-bukhari-2236'],
+      has_verified_hadith: true,
+      qualifications: ['Scholars differ on whether complete chemical transformation (istihalah) changes the ruling.'],
+    },
+  ],
+  ingredient_source_evidence: [],
+  islamic_evidence: [quran2173, bukhari2236],
+  scholarly_qualifications: [],
+  certification_status: { marks_visible: [], notes: 'No certification mark is visible.' },
+  unresolved_questions: [],
+  recommended_next_steps: ['Avoid this product if you follow halal guidelines.'],
+  limitations: ['No external verification.'],
+  model: 'anthropic/claude-sonnet-5.5',
+  used_corrected_text: true,
+  adjustments: [],
+}
+
+const unknownGelatine: IngredientsAnalysis = {
+  ...haramAnalysis,
+  detected_languages: ['French'],
+  extracted_ingredients_text: 'Ingrédients : sucre, gélatine',
+  overall_status: 'potentially_non_halal',
+  confidence: 'medium',
+  summary: 'The gelatine’s animal source is not stated.',
+  ingredients: [
+    ingredient('gélatine', {
+      translated_name: 'gelatine',
+      possible_sources: ['pork', 'animal'],
+      assessment: 'potential_concern',
+      needs_more_information: true,
+      knowledge_base_match: { term: 'gelatine', ruling: 'doubtful', note: 'Usually pork or non-halal beef unless the source is stated' },
+    }),
+  ],
+  identified_concerns: [
+    {
+      ...haramAnalysis.identified_concerns[0],
+      ingredient: 'gélatine',
+      concern_type: 'possible_prohibited_source',
+      source_evidence: 'Gelatine is commonly made from pork, but the label does not say.',
+      source_evidence_basis: 'general_knowledge',
+      connection: 'If the gelatine were pig-derived, it would fall under this principle.',
+      unresolved_question: 'Which animal is the gelatine from?',
+      verified_prohibited_source: false,
+    },
+  ],
+  reason_for_prohibition: [],
+  unresolved_questions: ['Which animal is the gelatine from?'],
+  scholarly_qualifications: [
+    { principle_id: 'swine', principle_title: 'Pork and pig-derived ingredients', category: 'prohibited', notes: ['The name alone does not establish a pig source.'] },
+  ],
+  adjustments: [],
+}
+
+function routes(...analyses: { status?: number; body: unknown }[]) {
+  let analyseCalls = 0
   return mockApi((url) => {
-    if (url.pathname !== '/api/halal/photo') return undefined
-    return responses[Math.min(call++, responses.length - 1)]
+    if (url.pathname === '/api/ingredients/read') return { body: reading }
+    if (url.pathname === '/api/ingredients/analyze') {
+      return analyses[Math.min(analyseCalls++, analyses.length - 1)]
+    }
+    return undefined
   })
 }
 
-function sentForm(fetchMock: ReturnType<typeof mockApi>, index = 0): FormData {
-  const [, init] = fetchMock.mock.calls[index] as unknown as [string, RequestInit]
+function sentForm(fetchMock: ReturnType<typeof mockApi>, path: string, index = 0): FormData {
+  const calls = fetchMock.mock.calls.filter(([url]) => String(url).includes(path))
+  const [, init] = calls[index] as unknown as [string, RequestInit]
   expect(init.method).toBe('POST')
   return init.body as FormData
 }
 
-async function uploadAndCheck(user: ReturnType<typeof renderApp>['user']) {
+async function readPhoto(user: ReturnType<typeof renderApp>['user']) {
   await user.upload(uploadInput(), photo())
-  await user.click(screen.getByRole('button', { name: 'Check ingredients' }))
+  await user.click(screen.getByRole('button', { name: 'Read ingredients' }))
+  await screen.findByRole('heading', { name: 'Check the ingredients we read' })
 }
 
 describe('scan ingredients', () => {
@@ -46,59 +219,138 @@ describe('scan ingredients', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Scan ingredients' })).toBeInTheDocument()
   })
 
-  it('uploads a photo, previews it and shows the halal check', async () => {
-    const fetchMock = photoRoute({ body: verdict })
+  it('reads a multilingual label and shows the original text alongside English for review', async () => {
+    const fetchMock = routes({ body: haramAnalysis })
     const { user } = renderApp('/ingredients')
 
     await user.upload(uploadInput(), photo())
-    expect(screen.getByRole('img', { name: /your photo of the ingredients label/i })).toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalled()
+    await readPhoto(user)
 
-    await user.click(screen.getByRole('button', { name: 'Check ingredients' }))
-
-    expect(await screen.findByRole('heading', { name: 'Doubtful' })).toBeInTheDocument()
-    expect(screen.getByText('1 ingredient needs checking')).toBeInTheDocument()
-    expect(screen.getByText('Can be animal or plant fat')).toBeInTheDocument()
-    expect(screen.getByText(/not a fatwa or certification/)).toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: 'What we read' })).toHaveValue(verdict.ingredients_text)
-    expect(screen.getByText(/Read by AI from your photo/)).toBeInTheDocument()
-
-    const form = sentForm(fetchMock)
-    expect((form.get('image') as File).name).toBe('label.jpg')
-    expect(form.get('ingredients_text')).toBeNull()
-
-    await user.click(screen.getByRole('button', { name: 'Check another product' }))
-    expect(screen.getByRole('button', { name: 'Upload image' })).toBeInTheDocument()
+    expect(screen.getByText('Label language: Arabic')).toBeInTheDocument()
+    const table = screen.getByRole('table', { name: /ingredients as printed and their english meaning/i })
+    const rows = within(table).getAllByRole('row').slice(1)
+    expect(rows.map((row) => within(row).getAllByRole('cell')[0].textContent)).toEqual([
+      'سكر',
+      'جيلاتين الخنزير',
+      'نكهات',
+    ])
+    expect(rows[1]).toHaveTextContent('pork gelatine')
+    expect(rows[1]).toHaveTextContent('Also known as porcine gelatin')
+    expect(rows[1]).toHaveTextContent('Check this: The second word is partly covered by a crease.')
+    expect(screen.getByText(/1 ingredient may have been misread/)).toBeInTheDocument()
+    // The AI asks rather than guessing when the label is ambiguous.
+    expect(screen.getByText(/Is the third ingredient/)).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: /ingredients text/i })).toHaveValue(reading.ingredients_text)
+    // Nothing has been assessed yet.
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/analyze'))).toBe(false)
   })
 
-  it('lets users correct the ingredients and re-check without the photo', async () => {
-    const fetchMock = photoRoute(
-      { body: verdict },
-      {
-        body: {
-          ...verdict,
-          verdict: 'halal',
-          reasons: [],
-          ingredients_text: 'Sugar, salt, sunflower lecithin',
-        },
-      },
-    )
+  it('analyses the text the user confirmed or edited, with the photo as supporting evidence', async () => {
+    const fetchMock = routes({ body: unknownGelatine })
     const { user } = renderApp('/ingredients')
-    await uploadAndCheck(user)
-    await screen.findByRole('heading', { name: 'Doubtful' })
+    await readPhoto(user)
+
+    const editor = screen.getByRole('textbox', { name: /ingredients text/i })
+    await user.clear(editor)
+    await user.type(editor, 'Ingrédients : sucre, gélatine')
+    await user.click(screen.getByRole('button', { name: 'Check edited ingredients' }))
+
+    expect(await screen.findByRole('heading', { name: /Potentially non-halal/ })).toBeInTheDocument()
+    const form = sentForm(fetchMock, '/api/ingredients/analyze')
+    expect(form.get('ingredients_text')).toBe('Ingrédients : sucre, gélatine')
+    expect(form.get('image')).toBeInstanceOf(File)
+  })
+
+  it('explains exactly why a product is haram, with verified, openable references', async () => {
+    routes({ body: haramAnalysis })
+    const { user } = renderApp('/ingredients')
+    await readPhoto(user)
+    await user.click(screen.getByRole('button', { name: 'Looks right — check ingredients' }))
+
+    const status = await screen.findByRole('heading', { name: /^Haram/ })
+    expect(status).toHaveTextContent('Pork and pig-derived ingredients identified')
+
+    const why = screen.getByRole('heading', { name: 'Why this product is assessed as haram' })
+      .parentElement!
+    // The ingredient, its name on the pack, its translation and its source evidence.
+    expect(within(why).getByText('جيلاتين الخنزير')).toHaveAttribute('dir', 'auto')
+    expect(why).toHaveTextContent('Name used on the packaging')
+    expect(why).toHaveTextContent('pork gelatine · Gelatine (porcine)')
+    expect(why).toHaveTextContent('Pork-derived')
+    expect(why).toHaveTextContent('From the label')
+    expect(why).toHaveTextContent('The label names the gelatine as pork gelatine.')
+    // Why it's prohibited (curated) and how it applies (AI, labelled as such).
+    expect(why).toHaveTextContent('The Qur’an explicitly prohibits the flesh of swine.')
+    expect(why).toHaveTextContent('AI interpretation')
+    // Verified references that can be opened.
+    const quranLink = within(why).getByRole('link', { name: /Read Qur'an 2:173 on Quran.com/ })
+    expect(quranLink).toHaveAttribute('href', 'https://quran.com/2/173')
+    const hadithLink = within(why).getByRole('link', { name: /Read Sahih al-Bukhari 2236 on Sunnah.com/ })
+    expect(hadithLink).toHaveAttribute('href', 'https://sunnah.com/bukhari:2236')
+    expect(why).toHaveTextContent('Sahih')
+    expect(why).toHaveTextContent('does not mention modern food additives')
+    expect(within(why).getAllByText('Verified reference')).toHaveLength(2)
+    // Scholarly qualifications.
+    expect(why).toHaveTextContent('istihalah')
+  })
+
+  it('does not call unknown-source gelatine haram, and says what would resolve it', async () => {
+    routes({ body: unknownGelatine })
+    const { user } = renderApp('/ingredients')
+    await readPhoto(user)
+    await user.click(screen.getByRole('button', { name: 'Looks right — check ingredients' }))
+
+    await screen.findByRole('heading', { name: /Potentially non-halal/ })
+    expect(screen.queryByText('Why this product is assessed as haram')).not.toBeInTheDocument()
+    const checking = screen.getByRole('heading', { name: 'What needs checking' }).parentElement!.parentElement!
+    expect(checking).toHaveTextContent('Possible prohibited source — not established')
+    expect(checking).toHaveTextContent('AI general knowledge — not independently verified')
+    expect(checking).toHaveTextContent('To resolve: Which animal is the gelatine from?')
+    expect(screen.getByText(/do not show that this product contains a prohibited/)).toBeInTheDocument()
+    expect(screen.getByText(/HalalCheck knowledge base: “gelatine”/)).toBeInTheDocument()
+  })
+
+  it('lets users correct the ingredients after the result and re-run', async () => {
+    const fetchMock = routes({ body: unknownGelatine }, { body: { ...unknownGelatine, overall_status: 'likely_halal', summary: 'Fish gelatine is permissible.' } })
+    const { user } = renderApp('/ingredients')
+    await readPhoto(user)
+    await user.click(screen.getByRole('button', { name: 'Looks right — check ingredients' }))
+    await screen.findByRole('heading', { name: /Potentially non-halal/ })
 
     const editor = screen.getByRole('textbox', { name: 'What we read' })
-    const recheck = screen.getByRole('button', { name: 'Edit and re-check' })
-    expect(recheck).toBeDisabled()
-
     await user.clear(editor)
-    await user.type(editor, 'Sugar, salt, sunflower lecithin')
-    await user.click(recheck)
+    await user.type(editor, 'sucre, gélatine de poisson')
+    await user.click(screen.getByRole('button', { name: 'Edit and re-check' }))
 
-    expect(await screen.findByRole('heading', { name: 'Halal' })).toBeInTheDocument()
-    const form = sentForm(fetchMock, 1)
-    expect(form.get('ingredients_text')).toBe('Sugar, salt, sunflower lecithin')
-    expect(form.get('image')).toBeNull()
+    expect(await screen.findByRole('heading', { name: /Likely halal/ })).toBeInTheDocument()
+    expect(sentForm(fetchMock, '/api/ingredients/analyze', 1).get('ingredients_text')).toBe(
+      'sucre, gélatine de poisson',
+    )
+  })
+
+  it('asks for a clearer photo when the label is unreadable', async () => {
+    mockApi((url) =>
+      url.pathname === '/api/ingredients/read'
+        ? {
+            body: {
+              ...reading,
+              label_readable: false,
+              readability_notes: 'The text is blurred. Move closer and hold the camera steady.',
+              clarification_request: null,
+              ingredients: [],
+              ingredients_text: '',
+            },
+          }
+        : undefined,
+    )
+    const { user } = renderApp('/ingredients')
+    await readPhoto(user)
+
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveTextContent('Please take a clearer photo')
+    expect(alert).toHaveTextContent('The text is blurred.')
+    expect(screen.getByRole('button', { name: /check ingredients/i })).toBeDisabled()
   })
 
   it('lets users replace the photo before submitting', async () => {
@@ -117,62 +369,60 @@ describe('scan ingredients', () => {
     ['animation.gif', 'image/gif', 'Please choose a JPEG, PNG or WebP image.'],
     ['IMG_1234.HEIC', 'image/heic', 'HEIC photos aren’t supported yet'],
   ])('rejects %s before uploading', (name, type, message) => {
-    const fetchMock = photoRoute({ body: verdict })
+    const fetchMock = routes({ body: haramAnalysis })
     renderApp('/ingredients')
 
     fireEvent.change(uploadInput(), { target: { files: [photo(name, type)] } })
 
     expect(screen.getByRole('alert')).toHaveTextContent(message)
-    expect(screen.queryByRole('button', { name: 'Check ingredients' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Read ingredients' })).not.toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('retries after the checker was unavailable', async () => {
-    photoRoute(
-      {
-        status: 503,
-        body: { error: { code: 'llm_unavailable', message: 'The ingredient checker is unavailable.' } },
-      },
-      { body: verdict },
+  it('retries the analysis after an AI failure', async () => {
+    routes(
+      { status: 502, body: { error: { code: 'ai_invalid_response', message: 'The analysis came back incomplete.' } } },
+      { body: haramAnalysis },
     )
     const { user } = renderApp('/ingredients')
-    await uploadAndCheck(user)
+    await readPhoto(user)
+    await user.click(screen.getByRole('button', { name: 'Looks right — check ingredients' }))
 
     const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('Couldn’t check this photo')
-    expect(alert).toHaveTextContent('The ingredient checker is unavailable.')
-
+    expect(alert).toHaveTextContent('The analysis came back incomplete.')
     await user.click(within(alert).getByRole('button', { name: 'Try again' }))
-    expect(await screen.findByRole('heading', { name: 'Doubtful' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /^Haram/ })).toBeInTheDocument()
   })
 
   it.each([
-    [422, 'unreadable_image', 'No ingredients list found', false],
     [415, 'unsupported_image_type', 'Unsupported image', false],
-    [413, 'image_too_large', 'Image too large', false],
     [429, 'too_many_requests', 'Scan limit reached', false],
     [503, 'ai_not_configured', 'Analysis isn’t available', true],
-  ])('shows %s %s errors', async (status, code, title, canRetry) => {
-    photoRoute({ status, body: { error: { code, message: 'Server message.' } } })
+  ])('shows %s %s errors when reading', async (status, code, title, canRetry) => {
+    mockApi((url) =>
+      url.pathname === '/api/ingredients/read'
+        ? { status, body: { error: { code, message: 'Server message.' } } }
+        : undefined,
+    )
     const { user } = renderApp('/ingredients')
-    await uploadAndCheck(user)
+    await user.upload(uploadInput(), photo())
+    await user.click(screen.getByRole('button', { name: 'Read ingredients' }))
 
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent(title)
-    expect(alert).toHaveTextContent('Server message.')
     expect(!!within(alert).queryByRole('button', { name: 'Try again' })).toBe(canRetry)
-    expect(within(alert).getByRole('button', { name: 'Use a different photo' })).toBeInTheDocument()
   })
 
   it('handles network failures', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
     const { user } = renderApp('/ingredients')
-    await uploadAndCheck(user)
+    await user.upload(uploadInput(), photo())
+    await user.click(screen.getByRole('button', { name: 'Read ingredients' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/could not reach halalcheck/i)
   })
 
-  it('can cancel while checking', async () => {
+  it('can cancel while reading', async () => {
     let aborted = false
     vi.stubGlobal(
       'fetch',
@@ -187,13 +437,13 @@ describe('scan ingredients', () => {
       ),
     )
     const { user } = renderApp('/ingredients')
-    await uploadAndCheck(user)
+    await user.upload(uploadInput(), photo())
+    await user.click(screen.getByRole('button', { name: 'Read ingredients' }))
     expect(await screen.findByText('Reading the label…')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(aborted).toBe(true)
-    expect(screen.getByRole('button', { name: 'Check ingredients' })).toBeInTheDocument()
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Read ingredients' })).toBeInTheDocument()
   })
 })
 

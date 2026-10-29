@@ -156,6 +156,63 @@ describe('halal check', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Nutella' })).toBeInTheDocument()
   })
 
+  it('backs a haram barcode verdict with verified Islamic evidence', async () => {
+    mockApi((url) =>
+      url.pathname.startsWith('/api/halal/')
+        ? {
+            body: {
+              verdict: 'haram',
+              reasons: [
+                { ingredient: 'pork fat', ruling: 'haram', note: 'Pork or pork-derived', principle_id: 'swine' },
+              ],
+              ingredients_text: 'flour, pork fat, salt',
+              ai_checked: false,
+              product: null,
+              explanations: [
+                {
+                  principle_id: 'swine',
+                  title: 'Pork and pig-derived ingredients',
+                  category: 'prohibited',
+                  principle: 'The Qur’an explicitly prohibits the flesh of swine.',
+                  evidence: [
+                    {
+                      id: 'quran-6-145',
+                      source_type: 'quran',
+                      reference: "Qur'an 6:145",
+                      title: "Surah Al-An'aam (6), verse 145",
+                      narrator: null,
+                      arabic_text: 'أَوْ لَحْمَ خِنزِيرٍۢ فَإِنَّهُۥ رِجْسٌ',
+                      translation: 'or the flesh of swine - for indeed, it is impure',
+                      translation_source: 'Saheeh International',
+                      text_source: 'Uthmani text (Tanzil) via AlQuran Cloud',
+                      authenticity: null,
+                      url: 'https://quran.com/6/145',
+                      excerpt: false,
+                    },
+                  ],
+                  evidence_notes: {},
+                  qualifications: ['Gelatine alone does not establish a pig source.'],
+                  has_verified_hadith: false,
+                },
+              ],
+            },
+          }
+        : { body: nutellaProduct },
+    )
+    renderApp('/product/0098008952506')
+
+    const why = (await screen.findByRole('heading', { name: 'Why this product is assessed as haram' }))
+      .parentElement!
+    expect(why).toHaveTextContent('Applies to: pork fat')
+    expect(why).toHaveTextContent('Pork and pig-derived ingredients')
+    expect(within(why).getByRole('link', { name: /Read Qur'an 6:145 on Quran.com/ })).toHaveAttribute(
+      'href',
+      'https://quran.com/6/145',
+    )
+    expect(why).toHaveTextContent('only Qur’anic evidence is shown')
+    expect(why).toHaveTextContent('Gelatine alone does not establish a pig source.')
+  })
+
   it('asks for a photo instead of a verdict when ingredients are missing', async () => {
     mockApi((url) =>
       url.pathname.startsWith('/api/halal/')

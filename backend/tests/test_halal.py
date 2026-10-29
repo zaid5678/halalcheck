@@ -82,10 +82,26 @@ def test_haram_from_rules_skips_llm(client: TestClient, upstream: FakeUpstream) 
     body = response.json()
     assert body["verdict"] == "haram"
     assert body["reasons"] == [
-        {"ingredient": "Pork fat", "ruling": "haram", "note": "Pork or pork-derived"}
+        {
+            "ingredient": "Pork fat",
+            "ruling": "haram",
+            "note": "Pork or pork-derived",
+            "principle_id": "swine",
+        }
     ]
     assert body["product"]["name"] == "Test Biscuits"
     assert llm_requests(upstream) == []
+    # The haram ruling comes with curated, verifiable evidence.
+    [explanation] = body["explanations"]
+    assert explanation["principle_id"] == "swine"
+    assert explanation["category"] == "prohibited"
+    assert [e["reference"] for e in explanation["evidence"]] == [
+        "Qur'an 2:173",
+        "Qur'an 5:3",
+        "Qur'an 6:145",
+        "Sahih al-Bukhari 2236",
+    ]
+    assert explanation["evidence"][0]["url"] == "https://quran.com/2/173"
 
 
 def test_llm_adds_concerns_rules_missed(client: TestClient, upstream: FakeUpstream) -> None:
