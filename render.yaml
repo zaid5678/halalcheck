@@ -11,7 +11,7 @@ services:
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
-      # Your Vercel site URL(s), comma-separated, e.g. https://halalcheck.vercel.app
+      # Your Vercel site URL(s), comma-separated, e.g. https://your-site.vercel.app
       - key: HALALCHECK_CORS_ORIGINS
         sync: false
       # OpenRouter API key for ingredient analysis (https://openrouter.ai/keys). Secret.

@@ -121,15 +121,15 @@ Deploy the backend first, because the frontend needs its URL.
 
 1. In Render, choose **New → Blueprint** and select the repository. Render reads [`render.yaml`](render.yaml) and builds [`backend/Dockerfile`](backend/Dockerfile).
 2. When prompted, set:
-   - `HALALCHECK_CORS_ORIGINS`: your Vercel URL, for example `https://halalcheck.vercel.app`. Separate multiple URLs with commas.
+   - `HALALCHECK_CORS_ORIGINS`: your Vercel URL, for example `https://your-site.vercel.app`. Separate multiple URLs with commas.
    - `OPENROUTER_API_KEY`: your OpenRouter key. Render stores it as a secret.
 3. `OPENROUTER_MODEL` is preset in `render.yaml`. Change it under **Environment** to try another model.
-4. Check `https://<your-service>.onrender.com/api/health`. It should report `"ai_configured": true`.
+4. Copy the service's URL from the top of its Render page. Render adds a random suffix when a name is taken, so it is often not simply `halalcheck-api.onrender.com`. Open `<that URL>/api/health`: it should report `"ai_configured": true`.
 
 ### Frontend on Vercel
 
 1. In Vercel, choose **Add New → Project** and import the repository, leaving **Root Directory** as the repository root. [`vercel.json`](vercel.json) handles the rest.
-2. Add the environment variable `VITE_API_BASE_URL` with your Render URL, for example `https://halalcheck-api.onrender.com`. If you add it after deploying, redeploy.
+2. Add the environment variable `VITE_API_BASE_URL` with the exact Render URL from step 4 above, for example `https://halalcheck-api-ab12.onrender.com`. Check that `<that URL>/api/health` opens in your browser first. If you add or change the variable after deploying, redeploy.
 3. Make sure `HALALCHECK_CORS_ORIGINS` on Render contains your Vercel URL.
 
 ### Caveats

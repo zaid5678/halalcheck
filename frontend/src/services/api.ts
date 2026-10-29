@@ -1,7 +1,7 @@
 import type { ApiErrorBody } from '../types/product'
 
 /**
- * The API's origin, e.g. "https://halalcheck-api.onrender.com". Paths already start with /api,
+ * The API's origin, e.g. "https://your-service.onrender.com". Paths already start with /api,
  * so a trailing slash or "/api" in the configured value is removed to avoid "/api/api/...".
  */
 export function normaliseApiBaseUrl(raw: string | undefined): string {
