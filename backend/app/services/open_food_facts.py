@@ -12,7 +12,9 @@ from typing import Any
 import httpx
 
 from app.config import Settings
+from app.errors import AppError
 from app.models.product import Product, ProductSummary, SearchResponse
+from app.services.products import ProductNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -53,21 +55,10 @@ _HALAL_TOKENS = frozenset(
 _LANGUAGE_PREFIX = re.compile(r"^[a-z]{2,3}:")
 
 
-class OpenFoodFactsError(Exception):
+class OpenFoodFactsError(AppError):
     code = "upstream_unavailable"
     status_code = 503
     message = "The product database is currently unavailable. Please try again shortly."
-
-    def __init__(self, message: str | None = None) -> None:
-        if message is not None:
-            self.message = message
-        super().__init__(self.message)
-
-
-class ProductNotFoundError(OpenFoodFactsError):
-    code = "not_found"
-    status_code = 404
-    message = "No product with this barcode was found in Open Food Facts."
 
 
 class UpstreamTimeoutError(OpenFoodFactsError):

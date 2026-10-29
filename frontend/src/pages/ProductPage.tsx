@@ -1,10 +1,10 @@
 import { Link, useNavigate, useParams } from 'react-router'
-import { ArrowLeftIcon } from '../components/icons'
+import { ArrowLeftIcon, CameraIcon } from '../components/icons'
 import { ProductDetails } from '../components/ProductDetails'
 import { EmptyState, ErrorState, Spinner } from '../components/StatusMessages'
 import { useRequest } from '../hooks/useRequest'
 import { validateBarcode } from '../lib/barcode'
-import { getProductByBarcode } from '../services/products'
+import { getProductByBarcode, PRODUCT_LOOKUP_UNAVAILABLE } from '../services/products'
 
 export function ProductPage() {
   const { barcode: rawBarcode = '' } = useParams()
@@ -41,19 +41,35 @@ export function ProductPage() {
 
       {result.status === 'loading' && <Spinner label="Looking up product…" />}
 
-      {result.status === 'error' && result.error.isNotFound && (
-        <EmptyState title="Product not found">
+      {result.status === 'error' && result.error.code === PRODUCT_LOOKUP_UNAVAILABLE && (
+        <EmptyState title="Product lookup is coming soon">
           <p>
-            No product with barcode <span className="font-mono text-ink">{barcode}</span> is in
-            Open Food Facts yet. Check the number, or search by product name instead.
+            Barcode <span className="font-mono text-ink">{barcode}</span> was read, but product
+            information isn’t available in HalalCheck yet. You can photograph the ingredients list
+            instead.
           </p>
-          <Link to="/" className="btn-secondary mt-4">
-            Search by name
+          <Link to="/ingredients" className="btn-primary mt-4 gap-2">
+            <CameraIcon className="size-5" />
+            Photograph ingredients
           </Link>
         </EmptyState>
       )}
 
-      {result.status === 'error' && !result.error.isNotFound && (
+      {result.status === 'error' && result.error.isNotFound && (
+        <EmptyState title="Product not found">
+          <p>
+            No product with barcode <span className="font-mono text-ink">{barcode}</span> was
+            found. Check the number, or photograph the ingredients list instead.
+          </p>
+          <Link to="/ingredients" className="btn-secondary mt-4">
+            Photograph ingredients
+          </Link>
+        </EmptyState>
+      )}
+
+      {result.status === 'error' &&
+        !result.error.isNotFound &&
+        result.error.code !== PRODUCT_LOOKUP_UNAVAILABLE && (
         <ErrorState
           title="Couldn’t load this product"
           message={result.error.message}

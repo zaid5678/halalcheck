@@ -8,6 +8,7 @@ import httpx
 from pydantic import BaseModel
 
 from app.config import Settings
+from app.errors import AppError
 from app.models.halal import Reason
 
 logger = logging.getLogger(__name__)
@@ -26,7 +27,7 @@ Reply with JSON only:
                "note": "<why, in under 12 words>"}}]}}"""
 
 
-class LLMError(Exception):
+class LLMError(AppError):
     code = "llm_unavailable"
     status_code = 503
     message = "The ingredient checker is currently unavailable. Please try again shortly."

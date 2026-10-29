@@ -88,4 +88,18 @@ describe('product search', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/could not reach halalcheck/i)
   })
+
+  it('explains that product search is not available yet', async () => {
+    mockApi(() => ({
+      status: 501,
+      body: {
+        error: { code: 'product_lookup_unavailable', message: 'Product lookup isn’t available yet.' },
+      },
+    }))
+    renderApp('/?q=nutella')
+
+    expect(await screen.findByText('Product search is coming soon')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: 'Photograph ingredients' }).length).toBeGreaterThan(0)
+  })
 })

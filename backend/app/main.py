@@ -1,18 +1,17 @@
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api import halal, products
 from app.config import get_settings
+from app.errors import AppError
 from app.models.product import HealthResponse
-from app.services.llm import LLMError
-from app.services.open_food_facts import OpenFoodFactsError, build_http_client
-from app.validation import InvalidInputError
+from app.services.open_food_facts import build_http_client
 
 settings = get_settings()
 logging.basicConfig(
@@ -21,17 +20,22 @@ logging.basicConfig(
 )
 logger = logging.getLogger("halalcheck")
 
+# Multipart overhead allowed on top of the image itself.
+_UPLOAD_OVERHEAD_BYTES = 64 * 1024
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.http_client = build_http_client(settings)
+    if not settings.openrouter_api_key:
+        logger.warning("HALALCHECK_OPENROUTER_API_KEY is not set: photo checks will return 503")
     try:
         yield
     finally:
         await app.state.http_client.aclose()
 
 
-app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
+app = FastAPI(title=settings.app_name, version="0.3.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -47,26 +51,31 @@ def _error(status_code: int, code: str, message: str) -> JSONResponse:
     )
 
 
-@app.exception_handler(InvalidInputError)
-async def invalid_input_handler(_: Request, exc: InvalidInputError) -> JSONResponse:
-    return _error(400, "invalid_request", str(exc))
+@app.middleware("http")
+async def reject_oversized_uploads(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
+    # Refuse obviously oversized uploads before the body is read or spooled to disk.
+    content_length = request.headers.get("content-length", "")
+    limit = settings.max_upload_bytes + _UPLOAD_OVERHEAD_BYTES
+    if request.method == "POST" and content_length.isdigit() and int(content_length) > limit:
+        return _error(413, halal.ImageTooLargeError.code, halal.ImageTooLargeError.message)
+    return await call_next(request)
+
+
+@app.exception_handler(AppError)
+async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
+    return _error(exc.status_code, exc.code, exc.message)
 
 
 @app.exception_handler(RequestValidationError)
 async def request_validation_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
     first = exc.errors()[0] if exc.errors() else {}
-    field = ".".join(str(part) for part in first.get("loc", ())[1:]) or "request"
+    location = [str(part) for part in first.get("loc", ())]
+    if location[:2] == ["body", "image"]:
+        return _error(400, "invalid_request", "Please choose an image to upload.")
+    field = ".".join(location[1:]) or "request"
     return _error(400, "invalid_request", f"Invalid {field}: {first.get('msg', 'invalid value')}")
-
-
-@app.exception_handler(OpenFoodFactsError)
-async def upstream_error_handler(_: Request, exc: OpenFoodFactsError) -> JSONResponse:
-    return _error(exc.status_code, exc.code, exc.message)
-
-
-@app.exception_handler(LLMError)
-async def llm_error_handler(_: Request, exc: LLMError) -> JSONResponse:
-    return _error(exc.status_code, exc.code, exc.message)
 
 
 @app.get("/api/health", response_model=HealthResponse, tags=["health"])

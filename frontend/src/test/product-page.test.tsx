@@ -76,6 +76,25 @@ describe('product details', () => {
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
   })
 
+  it('explains that barcode lookup is not available yet', async () => {
+    mockApi(() => ({
+      status: 501,
+      body: {
+        error: { code: 'product_lookup_unavailable', message: 'Product lookup isn’t available yet.' },
+      },
+    }))
+    renderApp('/product/0012345678905')
+
+    expect(
+      await screen.findByRole('heading', { name: 'Product lookup is coming soon' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('0012345678905')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Photograph ingredients' })).toHaveAttribute(
+      'href',
+      '/ingredients',
+    )
+  })
+
   it('rejects invalid barcodes in the URL without calling the API', async () => {
     const fetchMock = mockApi(() => undefined)
     renderApp('/product/abc')

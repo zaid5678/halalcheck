@@ -4,7 +4,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.products import get_off_client
+from app.api.products import get_product_lookup
 from app.config import Settings
 from app.main import app
 from app.services.open_food_facts import OpenFoodFactsClient, build_http_client
@@ -44,7 +44,7 @@ def upstream() -> FakeUpstream:
 @pytest.fixture
 def client(upstream: FakeUpstream, settings: Settings) -> Iterator[TestClient]:
     http = build_http_client(settings, transport=httpx.MockTransport(upstream))
-    app.dependency_overrides[get_off_client] = lambda: OpenFoodFactsClient(http, settings)
+    app.dependency_overrides[get_product_lookup] = lambda: OpenFoodFactsClient(http, settings)
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()

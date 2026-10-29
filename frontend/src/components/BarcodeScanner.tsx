@@ -2,11 +2,18 @@ import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
 import { BarcodeFormat, DecodeHintType } from '@zxing/library'
 import { useEffect, useId, useRef, useState } from 'react'
 import { isPlausibleBarcode } from '../lib/barcode'
+import {
+  CAMERA_ERRORS,
+  cameraPreflightError,
+  classifyCameraError,
+  type CameraErrorKind,
+} from '../lib/camera'
 import { CloseIcon, KeypadIcon } from './icons'
 
-export type ScanErrorKind = 'insecure' | 'unsupported' | 'permission' | 'no-camera' | 'in-use' | 'unknown'
-
-type ScanStatus = { status: 'starting' } | { status: 'scanning' } | { status: 'error'; kind: ScanErrorKind }
+type ScanStatus =
+  | { status: 'starting' }
+  | { status: 'scanning' }
+  | { status: 'error'; kind: CameraErrorKind }
 
 const RETAIL_FORMATS = [
   BarcodeFormat.EAN_13,
@@ -14,69 +21,6 @@ const RETAIL_FORMATS = [
   BarcodeFormat.UPC_A,
   BarcodeFormat.UPC_E,
 ]
-
-const ERROR_MESSAGES: Record<ScanErrorKind, { title: string; message: string; canRetry: boolean }> = {
-  insecure: {
-    title: 'Camera needs a secure connection',
-    message:
-      'Browsers only allow camera access on pages served over HTTPS. Open HalalCheck over HTTPS, or enter the barcode manually.',
-    canRetry: false,
-  },
-  unsupported: {
-    title: 'Scanning isn’t supported in this browser',
-    message:
-      'This browser can’t access a camera. Try an up-to-date version of Chrome, Safari or Firefox, or enter the barcode manually.',
-    canRetry: false,
-  },
-  permission: {
-    title: 'Camera access was blocked',
-    message:
-      'To scan, allow camera access for this site in your browser settings and try again. You can also enter the barcode manually.',
-    canRetry: true,
-  },
-  'no-camera': {
-    title: 'No camera found',
-    message: 'We couldn’t find a camera on this device. You can enter the barcode manually instead.',
-    canRetry: true,
-  },
-  'in-use': {
-    title: 'Camera is unavailable',
-    message:
-      'Your camera may be in use by another app or tab. Close it and try again, or enter the barcode manually.',
-    canRetry: true,
-  },
-  unknown: {
-    title: 'Couldn’t start the camera',
-    message: 'Something went wrong while starting the scanner. Try again, or enter the barcode manually.',
-    canRetry: true,
-  },
-}
-
-function classifyCameraError(error: unknown): ScanErrorKind {
-  const name = error instanceof Error || error instanceof DOMException ? error.name : ''
-  switch (name) {
-    case 'NotAllowedError':
-    case 'PermissionDeniedError':
-    case 'SecurityError':
-      return 'permission'
-    case 'NotFoundError':
-    case 'DevicesNotFoundError':
-    case 'OverconstrainedError':
-      return 'no-camera'
-    case 'NotReadableError':
-    case 'TrackStartError':
-    case 'AbortError':
-      return 'in-use'
-    default:
-      return 'unknown'
-  }
-}
-
-function preflightError(): ScanErrorKind | null {
-  if (typeof window !== 'undefined' && window.isSecureContext === false) return 'insecure'
-  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return 'unsupported'
-  return null
-}
 
 interface BarcodeScannerProps {
   onDetected: (barcode: string) => void
@@ -93,7 +37,7 @@ export function BarcodeScanner({ onDetected, onClose, onManualEntry }: BarcodeSc
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const [attempt, setAttempt] = useState(0)
   const [state, setState] = useState<ScanStatus>(() => {
-    const kind = preflightError()
+    const kind = cameraPreflightError()
     return kind ? { status: 'error', kind } : { status: 'starting' }
   })
   const titleId = useId()
@@ -107,7 +51,7 @@ export function BarcodeScanner({ onDetected, onClose, onManualEntry }: BarcodeSc
 
   useEffect(() => {
     // Preflight failures are already reflected in the initial state.
-    if (preflightError() || !videoRef.current) return
+    if (cameraPreflightError() || !videoRef.current) return
 
     let cancelled = false
     let detected = false
@@ -166,7 +110,7 @@ export function BarcodeScanner({ onDetected, onClose, onManualEntry }: BarcodeSc
     }
   }, [onClose])
 
-  const error = state.status === 'error' ? ERROR_MESSAGES[state.kind] : null
+  const error = state.status === 'error' ? CAMERA_ERRORS[state.kind] : null
 
   return (
     <div

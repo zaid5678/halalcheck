@@ -13,9 +13,9 @@ export interface Product extends ProductSummary {
   categories: string[]
   countries: string[]
   labels: string[]
-  /** Halal-related labels as recorded by Open Food Facts. Empty means "no information". */
+  /** Halal-related labels as recorded by the data source. Empty means "no information". */
   halal_labels: string[]
-  source_url: string
+  source_url: string | null
 }
 
 export interface SearchResponse {

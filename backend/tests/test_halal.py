@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api import halal
-from app.api.products import get_off_client
+from app.api.products import get_product_lookup
 from app.config import Settings
 from app.main import app
 from app.services.llm import LLMClient
@@ -31,7 +31,7 @@ def llm_reply(content: dict[str, object]) -> Handler:
 def make_client(upstream: FakeUpstream, api_key: str) -> Iterator[TestClient]:
     settings = Settings(openrouter_api_key=api_key)
     http = build_http_client(settings, transport=httpx.MockTransport(upstream))
-    app.dependency_overrides[get_off_client] = lambda: OpenFoodFactsClient(http, settings)
+    app.dependency_overrides[get_product_lookup] = lambda: OpenFoodFactsClient(http, settings)
     app.dependency_overrides[halal.get_llm_client] = lambda: LLMClient(http, settings)
     halal.verdict_cache.clear()
     with TestClient(app) as test_client:
@@ -200,17 +200,28 @@ def test_unreadable_photo_is_422(client: TestClient, upstream: FakeUpstream) -> 
     assert response.json()["error"]["code"] == "unreadable_image"
 
 
-def test_photo_rejects_non_images(client: TestClient) -> None:
-    response = post_photo(client, b"hello", "text/plain")
+def test_photo_type_is_detected_from_content(client: TestClient, upstream: FakeUpstream) -> None:
+    upstream.on(LLM_URL, llm_reply({"ingredients_text": "Sugar", "reasons": []}))
 
-    assert response.status_code == 400
-    assert response.json()["error"]["code"] == "invalid_request"
+    response = post_photo(client, PNG, "application/octet-stream")
+
+    assert response.status_code == 200
+    assert "data:image/png;base64," in llm_requests(upstream)[0].content.decode()
+
+
+@pytest.mark.parametrize("data", [b"hello", b""])
+def test_photo_rejects_non_images(client: TestClient, data: bytes) -> None:
+    response = post_photo(client, data, "image/png")
+
+    assert response.status_code == 415
+    assert response.json()["error"]["code"] == "unsupported_image_type"
 
 
 def test_photo_rejects_large_files(client: TestClient) -> None:
-    response = post_photo(client, b"x" * (5 * 1024 * 1024 + 1))
+    response = post_photo(client, PNG + b"x" * (10 * 1024 * 1024))
 
-    assert response.status_code == 400
+    assert response.status_code == 413
+    assert response.json()["error"]["code"] == "image_too_large"
 
 
 def test_photo_needs_llm(client_without_key: TestClient, upstream: FakeUpstream) -> None:

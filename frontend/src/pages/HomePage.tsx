@@ -1,6 +1,6 @@
-import { lazy, Suspense, useCallback, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router'
-import { KeypadIcon, ScanIcon } from '../components/icons'
+import { lazy, Suspense, useCallback, useState, type ReactNode } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router'
+import { CameraIcon, KeypadIcon, LabelTextIcon, ScanIcon, SearchIcon } from '../components/icons'
 import { ManualBarcodeEntry } from '../components/ManualBarcodeEntry'
 import { ProductSearch } from '../components/ProductSearch'
 import { SearchResults } from '../components/SearchResults'
@@ -38,45 +38,19 @@ export function HomePage() {
 
   return (
     <div className="space-y-6">
-      <section className="space-y-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Check a product</h1>
-          <p className="mt-1 text-muted">
-            Search by name or brand, or scan the barcode to see ingredients and any halal
-            certification information.
-          </p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Check a product</h1>
+        <p className="mt-1 text-muted">Search, scan a barcode, or photograph the ingredients list.</p>
+      </div>
 
+      <FeatureCard
+        icon={<SearchIcon className="size-5" />}
+        title="Search a product"
+        description="Find a product by name or brand."
+      >
         {/* Keyed by the query so the input resets when the URL changes (e.g. back/forward). */}
         <ProductSearch key={query} initialQuery={query} onSearch={(q) => setSearchParams({ q })} />
-
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => setScannerOpen(true)}
-            className="btn-primary h-14 gap-2 text-base"
-          >
-            <ScanIcon className="size-5" />
-            Scan barcode
-          </button>
-          <button
-            type="button"
-            onClick={() => setManualOpen((open) => !open)}
-            aria-expanded={manualOpen}
-            aria-controls="manual-entry"
-            className="btn-secondary h-14 gap-2 text-base"
-          >
-            <KeypadIcon className="size-5" />
-            Enter barcode
-          </button>
-        </div>
-
-        {manualOpen && (
-          <div id="manual-entry" className="rounded-2xl border border-line bg-surface p-4">
-            <ManualBarcodeEntry onSubmit={openProduct} autoFocus />
-          </div>
-        )}
-      </section>
+      </FeatureCard>
 
       {query && (
         <SearchResults
@@ -88,6 +62,47 @@ export function HomePage() {
           }}
         />
       )}
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <FeatureCard
+          icon={<ScanIcon className="size-5" />}
+          title="Scan a barcode"
+          description="Look up a product using its barcode."
+        >
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => setScannerOpen(true)} className="btn-primary h-12 gap-1.5 px-3 whitespace-nowrap">
+              <ScanIcon className="size-5" />
+              Scan barcode
+            </button>
+            <button
+              type="button"
+              onClick={() => setManualOpen((open) => !open)}
+              aria-expanded={manualOpen}
+              aria-controls="manual-entry"
+              className="btn-secondary h-12 gap-1.5 px-3 whitespace-nowrap"
+            >
+              <KeypadIcon className="size-5" />
+              Enter barcode
+            </button>
+          </div>
+          {manualOpen && (
+            <div id="manual-entry" className="mt-4 border-t border-line pt-4">
+              <ManualBarcodeEntry onSubmit={openProduct} autoFocus />
+            </div>
+          )}
+        </FeatureCard>
+
+        <FeatureCard
+          icon={<LabelTextIcon className="size-5" />}
+          title="Photograph ingredients"
+          description="Extract the ingredients from a packaging label."
+        >
+          <Link to="/ingredients" className="btn-primary h-12 w-full gap-2">
+            <CameraIcon className="size-5" />
+            Photograph ingredients
+          </Link>
+        </FeatureCard>
+      </div>
 
       {scannerOpen && (
         <Suspense
@@ -105,5 +120,29 @@ export function HomePage() {
         </Suspense>
       )}
     </div>
+  )
+}
+
+interface FeatureCardProps {
+  icon: ReactNode
+  title: string
+  description: string
+  children: ReactNode
+}
+
+function FeatureCard({ icon, title, description, children }: FeatureCardProps) {
+  return (
+    <section className="flex flex-col rounded-2xl border border-line bg-surface p-4 sm:p-5">
+      <div className="mb-4 flex items-start gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+          {icon}
+        </span>
+        <div>
+          <h2 className="font-semibold">{title}</h2>
+          <p className="text-sm text-muted">{description}</p>
+        </div>
+      </div>
+      <div className="mt-auto">{children}</div>
+    </section>
   )
 }

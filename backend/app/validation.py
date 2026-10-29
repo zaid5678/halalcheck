@@ -3,6 +3,8 @@
 import re
 import unicodedata
 
+from app.errors import InvalidInputError
+
 # EAN-8, UPC-A (12), EAN-13 and GTIN-14. Barcodes are always handled as strings so that
 # leading zeros survive.
 BARCODE_PATTERN = re.compile(r"^\d{8,14}$")
@@ -16,10 +18,6 @@ QUERY_MAX_LENGTH = 100
 _DISALLOWED_QUERY_CHARS = re.compile(r"[^\w\s'&.-]", re.UNICODE)
 _LEADING_HYPHENS = re.compile(r"(^|\s)-+")
 _WHITESPACE = re.compile(r"\s+")
-
-
-class InvalidInputError(ValueError):
-    """Raised when user input cannot be used to query the data source."""
 
 
 def normalise_barcode(raw: str) -> str:

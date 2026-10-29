@@ -35,12 +35,13 @@ class Settings(BaseSettings):
 
     search_page_size: int = Field(default=24, ge=1, le=100)
 
-    # LLM via OpenRouter. Without a key, barcode checks use the ingredient rules only.
+    # LLM via OpenRouter: reads ingredient photos and reviews ingredients. Without a key,
+    # barcode checks use the ingredient rules only and photo checks are unavailable.
     openrouter_api_key: str = ""
     openrouter_url: str = "https://openrouter.ai/api/v1/chat/completions"
     llm_model: str = "openai/gpt-6.1-terra"
     llm_timeout: float = 30.0
-    max_image_bytes: int = 5 * 1024 * 1024
+    max_upload_bytes: int = Field(default=10 * 1024 * 1024, ge=1)
 
     @field_validator("cors_origins", mode="before")
     @classmethod

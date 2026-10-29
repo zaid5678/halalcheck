@@ -55,19 +55,22 @@ export function ProductDetails({ product }: { product: Product }) {
 
       <footer className="rounded-2xl bg-brand-50 p-4 text-sm text-brand-800 sm:p-5">
         <p>
-          Product information comes from{' '}
-          <a
-            href={product.source_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 font-semibold underline underline-offset-2"
-          >
-            Open Food Facts
-            <ExternalLinkIcon className="size-3.5" />
-            <span className="sr-only">(opens in a new tab)</span>
-          </a>
-          , a free database maintained by volunteers. It may be incomplete or out of date. You can
-          correct or add details there.
+          Product information may be incomplete or out of date. Always check the packaging.
+          {product.source_url && (
+            <>
+              {' '}
+              <a
+                href={product.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 font-semibold underline underline-offset-2"
+              >
+                View the source record
+                <ExternalLinkIcon className="size-3.5" />
+                <span className="sr-only">(opens in a new tab)</span>
+              </a>
+            </>
+          )}
         </p>
       </footer>
     </article>
@@ -95,7 +98,7 @@ function HalalCertification({ labels }: { labels: string[] }) {
           {hasInfo ? (
             <>
               <p className="mt-1 text-sm text-muted">
-                Open Food Facts lists these halal-related labels for this product:
+                These halal-related labels are recorded for this product:
               </p>
               <ul className="mt-3 flex flex-wrap gap-2">
                 {labels.map((label) => (
@@ -108,8 +111,7 @@ function HalalCertification({ labels }: { labels: string[] }) {
                 ))}
               </ul>
               <p className="mt-3 text-sm text-muted">
-                These labels were added by Open Food Facts contributors and haven’t been verified by
-                HalalCheck. Check the certification mark on the packaging and with the certifying
+                These labels come from the product database and haven’t been verified by HalalCheck. Check the certification mark on the packaging and with the certifying
                 body.
               </p>
             </>
@@ -118,7 +120,7 @@ function HalalCertification({ labels }: { labels: string[] }) {
               <p className="mt-1 font-medium">No halal certification information available</p>
               <p className="mt-1 text-sm text-muted">
                 This doesn’t mean the product isn’t halal. No halal label has been recorded for it
-                on Open Food Facts yet. Check the packaging for a certification mark.
+                yet. Check the packaging for a certification mark.
               </p>
             </>
           )}
@@ -128,7 +130,8 @@ function HalalCertification({ labels }: { labels: string[] }) {
   )
 }
 
-/** Open Food Facts marks allergens with underscores, e.g. "_wheat_ flour". Show them in bold. */
+/** Product databases such as Open Food Facts mark allergens with underscores ("_wheat_ flour").
+ * Show them in bold. */
 function IngredientsText({ text }: { text: string }) {
   const parts = text.split(/_([^_]+)_/g)
   return parts.map((part, index) =>
