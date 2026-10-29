@@ -1,0 +1,32 @@
+[
+  { "match": ["pork", "pig", "lard", "bacon", "ham", "gammon", "pancetta", "prosciutto", "pork gelatine", "pork fat"], "ruling": "haram", "note": "Pork or pork-derived" },
+  { "match": ["blood", "black pudding"], "ruling": "haram", "note": "Blood is prohibited" },
+  { "match": ["wine", "beer", "cider", "rum", "brandy", "sherry", "whisky", "vodka", "liqueur", "champagne"], "ruling": "haram", "note": "Alcoholic drink as an ingredient" },
+  { "match": ["E120", "carmine", "cochineal", "carminic acid"], "ruling": "haram", "note": "Insect-derived colour; rejected by UK certifiers, some scholars permit" },
+
+  { "match": ["gelatine", "gelatin", "E441"], "ruling": "doubtful", "note": "Usually pork or non-halal beef unless the source is stated" },
+  { "match": ["collagen"], "ruling": "doubtful", "note": "Animal source not stated" },
+  { "match": ["E471", "mono- and diglycerides of fatty acids", "mono and diglycerides"], "ruling": "doubtful", "note": "Can be animal or plant fat" },
+  { "match": ["E470a", "E470b", "E472a", "E472b", "E472c", "E472d", "E472e", "E472f", "E473", "E474", "E475", "E477"], "ruling": "doubtful", "note": "Fatty-acid emulsifier, can be animal-derived" },
+  { "match": ["E481", "E482", "E491", "E492", "E493", "E494", "E495"], "ruling": "doubtful", "note": "Fatty-acid emulsifier, can be animal-derived" },
+  { "match": ["E570", "stearic acid"], "ruling": "doubtful", "note": "Can be animal fat" },
+  { "match": ["E422", "glycerol", "glycerine", "glycerin"], "ruling": "doubtful", "note": "Can be animal fat" },
+  { "match": ["E542", "bone phosphate"], "ruling": "doubtful", "note": "From animal bones" },
+  { "match": ["E627", "E631", "E635", "disodium inosinate", "disodium ribonucleotides"], "ruling": "doubtful", "note": "Can come from meat or fish" },
+  { "match": ["E920", "L-cysteine"], "ruling": "doubtful", "note": "Can be from feathers or hair" },
+  { "match": ["E904", "shellac"], "ruling": "doubtful", "note": "Insect resin; scholars differ" },
+  { "match": ["rennet", "animal rennet", "cheese"], "ruling": "doubtful", "note": "Rennet source usually not stated" },
+  { "match": ["whey", "whey powder"], "ruling": "doubtful", "note": "By-product of cheese made with rennet of unknown source" },
+  { "match": ["enzymes", "pepsin", "lipase"], "ruling": "doubtful", "note": "Can be animal-derived" },
+  { "match": ["natural flavouring", "natural flavourings", "flavouring", "flavourings"], "ruling": "doubtful", "note": "May use alcohol as a carrier or contain animal derivatives" },
+  { "match": ["vanilla extract"], "ruling": "doubtful", "note": "Usually extracted in alcohol; scholars differ" },
+  { "match": ["alcohol", "ethanol", "ethyl alcohol"], "ruling": "doubtful", "note": "Solvent or trace alcohol; scholars differ by source and amount" },
+  { "match": ["animal fat", "shortening", "suet", "tallow", "dripping"], "ruling": "doubtful", "note": "Animal source not stated" },
+  { "match": ["beef", "chicken", "lamb", "mutton", "turkey", "duck", "veal", "meat"], "ruling": "doubtful", "note": "Halal only if slaughter is certified" },
+  { "match": ["prawn", "prawns", "shrimp", "crab", "lobster", "mussels", "oyster", "squid", "clams"], "ruling": "doubtful", "note": "Halal for most schools; Hanafi scholars differ" },
+
+  { "match": ["halal gelatine", "halal beef gelatine", "fish gelatine", "bovine gelatine (halal)"], "ruling": "halal", "note": "Source stated as halal" },
+  { "match": ["vinegar", "spirit vinegar", "malt vinegar", "cider vinegar", "wine vinegar", "white wine vinegar", "red wine vinegar"], "ruling": "halal", "note": "Vinegar is halal" },
+  { "match": ["vegetable rennet", "microbial rennet"], "ruling": "halal", "note": "Non-animal rennet" },
+  { "match": ["soya lecithin", "sunflower lecithin"], "ruling": "halal", "note": "Plant lecithin" }
+]

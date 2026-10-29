@@ -162,3 +162,31 @@ def make_label(lines: list[str], size: tuple[int, int] = (1400, 420)) -> Image.I
     for index, line in enumerate(lines):
         draw.text((40, 40 + index * 90), line, fill=(40, 30, 30), font=font)
     return image
+
+
+class FakeUpstream:
+    """Routes outgoing Open Food Facts and LLM requests to per-test handlers, by host + path."""
+
+    def __init__(self) -> None:
+        self.routes: dict[str, Handler] = {}
+        self.requests: list[httpx.Request] = []
+
+    def on(self, url: str, handler: Handler) -> None:
+        parsed = httpx.URL(url)
+        self.routes[f"{parsed.host}{parsed.path}"] = handler
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(request)
+        handler = self.routes.get(f"{request.url.host}{request.url.path}")
+        if handler is None:
+            raise AssertionError(f"Unexpected upstream request: {request.url}")
+        return handler(request)
+
+
+@pytest.fixture
+def upstream() -> FakeUpstream:
+    return FakeUpstream()
+
+
+def json_response(data: object, status_code: int = 200) -> Handler:
+    return lambda _request: httpx.Response(status_code, json=data)

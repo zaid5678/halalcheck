@@ -8,11 +8,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.ai.openrouter import build_http_client
-from app.api import ingredients, products
+from app.api import halal, ingredients, products
 from app.config import get_settings
 from app.errors import AppError
 from app.models.product import HealthResponse
 from app.rate_limit import SlidingWindowRateLimiter
+from app.services import open_food_facts
 
 settings = get_settings()
 logging.basicConfig(
@@ -28,6 +29,7 @@ _UPLOAD_OVERHEAD_BYTES = 64 * 1024
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.openrouter_http = build_http_client(settings)
+    app.state.http_client = open_food_facts.build_http_client(settings)
     app.state.analysis_rate_limiter = SlidingWindowRateLimiter(
         settings.analysis_rate_limit_per_hour
     )
@@ -39,6 +41,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         await app.state.openrouter_http.aclose()
+        await app.state.http_client.aclose()
 
 
 app = FastAPI(title=settings.app_name, version="0.3.0", lifespan=lifespan)
@@ -94,3 +97,4 @@ async def health() -> HealthResponse:
 
 app.include_router(products.router)
 app.include_router(ingredients.router)
+app.include_router(halal.router)

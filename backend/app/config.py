@@ -22,6 +22,19 @@ class Settings(BaseSettings):
         default=["http://localhost:5173", "http://127.0.0.1:5173"]
     )
 
+    # Open Food Facts
+    off_base_url: str = "https://world.openfoodfacts.org"
+    # Search-a-licious: Open Food Facts' Elasticsearch-backed full-text search service.
+    off_search_url: str = "https://search.openfoodfacts.org/search"
+    # Legacy full-text search, used as a fallback when the search service is unavailable.
+    off_legacy_search_url: str = "https://world.openfoodfacts.org/cgi/search.pl"
+    # Open Food Facts asks every client to identify itself: AppName/Version (ContactEmail).
+    off_user_agent: str = "HalalCheck/0.1 (contact@example.com)"
+    off_connect_timeout: float = 5.0
+    off_read_timeout: float = 10.0
+
+    search_page_size: int = Field(default=24, ge=1, le=100)
+
     # Image uploads
     max_upload_bytes: int = Field(default=10 * 1024 * 1024, ge=1)
     max_image_pixels: int = Field(default=40_000_000, ge=1)

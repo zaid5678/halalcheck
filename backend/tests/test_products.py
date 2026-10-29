@@ -10,20 +10,6 @@ def test_health_reports_ai_status(client: TestClient) -> None:
     assert "ai_configured" in response.json()
 
 
-def test_search_reports_lookup_unavailable(client: TestClient) -> None:
-    response = client.get("/api/products/search", params={"q": "nutella"})
-
-    assert response.status_code == 501
-    assert response.json()["error"]["code"] == "product_lookup_unavailable"
-
-
-def test_barcode_reports_lookup_unavailable(client: TestClient) -> None:
-    response = client.get("/api/products/barcode/0012345678905")
-
-    assert response.status_code == 501
-    assert response.json()["error"]["code"] == "product_lookup_unavailable"
-
-
 @pytest.mark.parametrize("barcode", ["abc", "1234", "123456789012345"])
 def test_barcode_input_is_still_validated(client: TestClient, barcode: str) -> None:
     response = client.get(f"/api/products/barcode/{barcode}")

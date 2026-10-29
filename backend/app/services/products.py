@@ -1,20 +1,13 @@
 """Product data source interface.
 
-Product lookups (search and barcode) are not implemented yet: another part of the project will
-provide a data source. To plug one in, implement ``ProductLookup`` and return it from
-``get_product_lookup``. The API routes, validation and response models are already in place.
+Open Food Facts is the current data source. To swap it, implement ``ProductLookup`` and return
+it from ``get_product_lookup`` in ``app.api.products``.
 """
 
 from typing import Protocol
 
 from app.errors import AppError
 from app.models.product import Product, SearchResponse
-
-
-class ProductLookupUnavailableError(AppError):
-    code = "product_lookup_unavailable"
-    status_code = 501
-    message = "Product lookup isn't available yet."
 
 
 class ProductNotFoundError(AppError):
@@ -31,17 +24,3 @@ class ProductLookup(Protocol):
     async def get_product(self, barcode: str) -> Product:
         """Return one product, or raise ``ProductNotFoundError``. ``barcode`` is validated."""
         ...
-
-
-class UnavailableProductLookup:
-    """Placeholder used until a real product data source is connected."""
-
-    async def search(self, query: str, page: int) -> SearchResponse:
-        raise ProductLookupUnavailableError()
-
-    async def get_product(self, barcode: str) -> Product:
-        raise ProductLookupUnavailableError()
-
-
-def get_product_lookup() -> ProductLookup:
-    return UnavailableProductLookup()
